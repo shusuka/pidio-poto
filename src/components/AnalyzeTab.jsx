@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react'
 import {
-  callGemini, fileToBase64, parseJsonResponse,
+  callAI, fileToBase64, parseJsonResponse,
   buildAnalyzePromptText, buildInsightPrompt,
   extractVideoMetadata, PLATFORM_CONFIGS
 } from '../utils/gemini'
@@ -78,7 +78,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
 
   async function analyzeVideo() {
     if (!state.videoFile) return showToast('Upload video dulu!', true)
-    if (!state.apiKey)    return showToast('Masukkan Gemini API key!', true)
+    if (!state.apiKey)    return showToast('Masukkan API key!', true)
     set({ isAnalyzing: true, analysisText: null })
     setInsightData(null)
     try {
@@ -90,7 +90,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
         cinematic: state.toggleCinematic, motionAnalysis: state.toggleMotion,
         videoMeta: state.videoMeta,
       })
-      const { text, tokens } = await callGemini({
+      const { text, tokens } = await callAI({ provider: state.provider,
         apiKey: state.apiKey, model: state.model, prompt, mediaData: b64, mimeType: mime,
         temperature: parseFloat(state.temperature) || 0.7, maxTokens: parseInt(state.maxTokens) || 8192,
         thinkingMode: state.generateMode === 'think',
@@ -112,7 +112,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
         lang: state.lang || 'en',
         videoMeta: state.videoMeta,
       })
-      const { text, tokens } = await callGemini({ apiKey: state.apiKey, model: state.model, prompt, temperature: 0.8, maxTokens: 4096 })
+      const { text, tokens } = await callAI({ provider: state.provider, apiKey: state.apiKey, model: state.model, prompt, temperature: 0.8, maxTokens: 4096 })
       const parsed = parseJsonResponse(text)
       if (parsed) {
         setInsightData(parsed)
@@ -131,7 +131,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
     setIsGenStory(true)
     try {
       const prompt = `Based on this video analysis:\n${state.analysisText}\n\nCreate a ${type} style video story with ${clipCount} clips titled: "${title}"\nPlatform: ${state.promptMode}\nFor each clip:\n- Clip N [timestamp]: Scene prompt, Narration, Duration, Camera`
-      const { text, tokens } = await callGemini({ apiKey: state.apiKey, model: state.model, prompt, temperature: 0.8, maxTokens: 4096 })
+      const { text, tokens } = await callAI({ provider: state.provider, apiKey: state.apiKey, model: state.model, prompt, temperature: 0.8, maxTokens: 4096 })
       setStoryOutput(text)
       set(prev => ({ totalTokens: prev.totalTokens + tokens }))
       showToast('Story berhasil!')
@@ -581,7 +581,7 @@ function GlassCard({ color, label, children, style = {} }) {
 function OutputBox({ content, loading, empty, mono, minH = 80, style = {} }) {
   return (
     <div style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(100,120,220,0.12)', borderRadius: 9, padding: '10px 12px', overflowY: 'auto', fontSize: mono ? 11 : 12, lineHeight: 1.75, fontFamily: mono ? 'var(--mono)' : 'var(--sans)', color: content ? 'var(--text)' : 'var(--text3)', fontStyle: !content && !loading ? 'italic' : 'normal', whiteSpace: 'pre-wrap', wordBreak: 'break-word', minHeight: minH, animation: loading ? 'pulse 1.2s infinite' : 'none', ...style }}>
-      {loading ? '⟳ Analyzing with Gemini...' : content || empty || '—'}
+      {loading ? '⟳ Analyzing...' : content || empty || '—'}
       <style>{`@keyframes pulse{0%,100%{opacity:.65}50%{opacity:1}}`}</style>
     </div>
   )

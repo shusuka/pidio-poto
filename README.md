@@ -1,6 +1,6 @@
 # VideoPrompt Pro
 
-AI-powered video prompt generator using Google Gemini API.
+AI-powered video prompt generator. Choose your provider: **Google Gemini** or **Anthropic Claude**.
 
 ## Features
 
@@ -13,7 +13,9 @@ AI-powered video prompt generator using Google Gemini API.
 1. Clone repo
 2. `npm install`
 3. `npm run dev`
-4. Enter your Gemini API key in the sidebar
+4. Pick a provider (Gemini / Claude) in the top bar, then enter that provider's API key
+   - Gemini key (`AIza...`) — supports video + image analysis
+   - Claude key (`sk-ant-...`) — image only (Claude has no video input)
 
 ## Deploy to Vercel
 
@@ -25,7 +27,7 @@ npm run build
 ## Stack
 
 - React 18 + Vite 5
-- Google Gemini API (gemini-2.0-flash / 1.5-flash / 2.5)
+- Google Gemini API (gemini-3-flash / 2.5-flash) + Anthropic Claude API (opus-4-8 / sonnet-4-6)
 - CSS Modules
 - No backend required — runs entirely in the browser
 

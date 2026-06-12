@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
-import { callGemini } from '../utils/gemini'
+import { callAI } from '../utils/gemini'
 import MobileLayout from './MobileLayout'
 
 const CC = [
@@ -101,7 +101,7 @@ export default function ObjectSwapTab({ state, set, showToast, isMobile }) {
 
   async function generate(isRegen = false) {
     if (!image) return showToast('Upload gambar dulu!', true)
-    if (!state.apiKey) return showToast('Masukkan Gemini API key!', true)
+    if (!state.apiKey) return showToast('Masukkan API key!', true)
 
     setLoading(true)
     if (!isRegen) setResult(null)
@@ -149,7 +149,7 @@ Schema:
 }`
 
     try {
-      const { text, tokens } = await callGemini({
+      const { text, tokens } = await callAI({ provider: state.provider,
         apiKey: state.apiKey, model: state.model, prompt,
         mediaData: image.base64, mimeType: image.mime,
         temperature: adultMode ? 0.7 : 0.5, maxTokens: 2048,

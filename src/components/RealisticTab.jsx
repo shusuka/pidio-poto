@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { callGemini, fileToBase64 } from '../utils/gemini'
+import { callAI, fileToBase64 } from '../utils/gemini'
 import MobileLayout from './MobileLayout'
 
 const CC = [
@@ -55,7 +55,7 @@ export default function RealisticTab({ state, set, showToast, isMobile }) {
 
   async function generateVariations() {
     if (!basePrompt.trim()) return showToast('Isi base prompt dulu!', true)
-    if (!state.apiKey) return showToast('Masukkan Gemini API key!', true)
+    if (!state.apiKey) return showToast('Masukkan API key!', true)
     if (theme === 'custom' && !customTheme.trim()) return showToast('Tulis tema custom dulu!', true)
 
     setLoading(true)
@@ -118,7 +118,7 @@ STRICT RULES:
 - Each variation must feel genuinely different from the others
 - Platform: ${platformLabel}`
 
-      const { text, tokens } = await callGemini({
+      const { text, tokens } = await callAI({ provider: state.provider,
         apiKey: state.apiKey, model: state.model, prompt,
         temperature: 0.85, maxTokens: 8192,
       })

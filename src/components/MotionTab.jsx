@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { callGemini, fileToBase64 } from '../utils/gemini'
+import { callAI, fileToBase64 } from '../utils/gemini'
 
 const CAM_MOVES = ['Static','Dolly In','Dolly Out','Pan Left→Right','Pan Right→Left','Tilt Up','Tilt Down','Orbital 360°','Handheld','Crane Up','Aerial Drone']
 const TRANSITIONS = ['Cut','Dissolve','Wipe','Morph','Zoom Transition','Glitch']
@@ -19,7 +19,7 @@ export default function MotionTab({ state, set, showToast }) {
   const setP = (k,v) => setParams(p => ({...p,[k]:v}))
 
   async function generateMotionPrompt() {
-    if (!state.apiKey) return showToast('Enter your Gemini API key!', true)
+    if (!state.apiKey) return showToast('Enter your API key!', true)
     setLoading(true)
     setOutput('Generating motion prompt...')
     const prompt = `Generate a precise motion video prompt based on these parameters:
@@ -40,7 +40,7 @@ Format EXACTLY:
 MOTION PROMPT: [detailed prompt here]
 TAGS: [tag1], [tag2], [tag3], [tag4], [tag5], [tag6]`
     try {
-      const { text, tokens } = await callGemini({ apiKey: state.apiKey, model: state.model, prompt, temperature: parseFloat(state.temperature), maxTokens: 1024 })
+      const { text, tokens } = await callAI({ provider: state.provider, apiKey: state.apiKey, model: state.model, prompt, temperature: parseFloat(state.temperature), maxTokens: 1024 })
       const parts = text.split('TAGS:')
       setOutput(parts[0].replace('MOTION PROMPT:', '').trim())
       if (parts[1]) setTags(parts[1].trim().split(',').map(t => t.trim()).filter(Boolean))
@@ -52,12 +52,12 @@ TAGS: [tag1], [tag2], [tag3], [tag4], [tag5], [tag6]`
 
   async function analyzeFromVideo() {
     if (!state.videoFile) return showToast('Upload a video first!', true)
-    if (!state.apiKey) return showToast('Enter your Gemini API key!', true)
+    if (!state.apiKey) return showToast('Enter your API key!', true)
     setLoading(true)
     setOutput('Detecting motion from video...')
     try {
       const b64 = await fileToBase64(state.videoFile)
-      const { text, tokens } = await callGemini({
+      const { text, tokens } = await callAI({ provider: state.provider,
         apiKey: state.apiKey, model: state.model,
         prompt: `Analyze the motion in this video. Extract: camera movement type, motion speed, pan/tilt/zoom, shake/stabilization, cut frequency, transition style. Output a detailed MOTION PROMPT then TAGS.`,
         mediaData: b64, mimeType: state.videoFile.type || 'video/mp4',

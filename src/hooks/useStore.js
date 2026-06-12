@@ -1,10 +1,22 @@
 import { useState, useCallback, useEffect } from 'react'
 
-const STORAGE_KEY = 'videoprompt_apikey'
+const PROVIDER_KEY = 'videoprompt_provider'
+const KEY_SLOT = { gemini: 'videoprompt_gemini_key', claude: 'videoprompt_claude_key' }
+const DEFAULT_MODEL = { gemini: 'gemini-3-flash-preview', claude: 'claude-opus-4-8' }
+
+// Ambil key tersimpan untuk provider; fallback ke key lama (videoprompt_apikey) untuk Gemini.
+function loadKey(provider) {
+  return localStorage.getItem(KEY_SLOT[provider])
+    || (provider === 'gemini' ? localStorage.getItem('videoprompt_apikey') : '')
+    || ''
+}
+
+const savedProvider = localStorage.getItem(PROVIDER_KEY) || 'gemini'
 
 const initialState = {
-  apiKey: '',
-  model: 'gemini-3-flash-preview',
+  provider: savedProvider,
+  apiKey: loadKey(savedProvider),
+  model: DEFAULT_MODEL[savedProvider],
   temperature: 0.7,
   maxTokens: 8192,
   toggleCinematic: true,
@@ -25,18 +37,25 @@ const initialState = {
 }
 
 export function useStore() {
-  const [state, setState] = useState(() => ({
-    ...initialState,
-    apiKey: localStorage.getItem(STORAGE_KEY) || '',
-  }))
+  const [state, setState] = useState(() => ({ ...initialState }))
 
   const set = useCallback((updates) => {
     setState(prev => {
-      const next = { ...prev, ...(typeof updates === 'function' ? updates(prev) : updates) }
-      // Persist apiKey whenever it changes
-      if (next.apiKey !== prev.apiKey) {
-        if (next.apiKey) localStorage.setItem(STORAGE_KEY, next.apiKey)
-        else localStorage.removeItem(STORAGE_KEY)
+      const patch = typeof updates === 'function' ? updates(prev) : updates
+      const next = { ...prev, ...patch }
+
+      // Ganti provider → muat key provider tsb + reset model ke default provider
+      if (patch.provider && patch.provider !== prev.provider) {
+        localStorage.setItem(PROVIDER_KEY, patch.provider)
+        next.apiKey = loadKey(patch.provider)
+        next.model = DEFAULT_MODEL[patch.provider]
+      }
+
+      // Simpan key ke slot provider aktif hanya saat user mengubah apiKey
+      if ('apiKey' in patch) {
+        const slot = KEY_SLOT[next.provider]
+        if (next.apiKey) localStorage.setItem(slot, next.apiKey)
+        else localStorage.removeItem(slot)
       }
       return next
     })

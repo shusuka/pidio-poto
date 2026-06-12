@@ -1,3 +1,11 @@
+// ─── Dispatcher: pilih provider berdasarkan state.provider ───────────────────
+// Pemanggil cukup memanggil callAI({ provider, ... }); param lain diteruskan.
+export async function callAI({ provider = 'gemini', ...opts }) {
+  return provider === 'claude' ? callClaude(opts) : callGemini(opts)
+}
+
+// ─── Google Gemini API ───────────────────────────────────────────────────────
+// Mendukung input video & gambar (inline_data).
 export async function callGemini({ apiKey, model, prompt, mediaData, mimeType, temperature = 0.7, maxTokens = 8192, thinkingMode = false }) {
   if (!apiKey) throw new Error('API key required')
   const parts = []
@@ -16,6 +24,43 @@ export async function callGemini({ apiKey, model, prompt, mediaData, mimeType, t
   if (data.error) throw new Error(data.error.message)
   const text = data.candidates?.[0]?.content?.parts?.find(p => p.text)?.text || ''
   const tokens = data.usageMetadata?.totalTokenCount || 0
+  return { text, tokens }
+}
+
+// ─── Anthropic Claude Messages API ───────────────────────────────────────────
+// Dipanggil langsung dari browser; header `anthropic-dangerous-direct-browser-access`
+// diperlukan agar lolos CORS. Claude hanya menerima gambar (tidak video).
+export async function callClaude({ apiKey, model, prompt, mediaData, mimeType, maxTokens = 8192 }) {
+  if (!apiKey) throw new Error('API key required')
+
+  const content = []
+  if (mediaData) {
+    if ((mimeType || '').startsWith('image/')) {
+      content.push({ type: 'image', source: { type: 'base64', media_type: mimeType, data: mediaData } })
+    } else {
+      throw new Error('Claude hanya mendukung gambar, bukan video. Pakai provider Gemini untuk video.')
+    }
+  }
+  content.push({ type: 'text', text: prompt })
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content }],
+    }),
+  })
+  const data = await res.json()
+  if (data.type === 'error' || data.error) throw new Error(data.error?.message || 'Claude API error')
+  const text = data.content?.find(b => b.type === 'text')?.text || ''
+  const tokens = data.usage ? (data.usage.input_tokens || 0) + (data.usage.output_tokens || 0) : 0
   return { text, tokens }
 }
 

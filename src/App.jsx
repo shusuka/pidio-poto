@@ -6,10 +6,20 @@ import ObjectSwapTab from './components/ObjectSwapTab'
 import RealisticTab from './components/RealisticTab'
 import Toast from './components/Toast'
 
-const MODELS = [
-  { id: 'gemini-3-flash-preview',        label: '3 Flash ⚡' },
-  { id: 'gemini-2.5-flash-preview-05-20', label: '2.5 Flash' },
+const PROVIDERS = [
+  { id: 'gemini', label: 'Gemini' },
+  { id: 'claude', label: 'Claude' },
 ]
+const MODELS_BY_PROVIDER = {
+  gemini: [
+    { id: 'gemini-3-flash-preview',         label: '3 Flash ⚡' },
+    { id: 'gemini-2.5-flash-preview-05-20', label: '2.5 Flash' },
+  ],
+  claude: [
+    { id: 'claude-opus-4-8',   label: 'Opus 4.8 ⚡' },
+    { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+  ],
+}
 const TABS = [
   { id: 'analyze',   label: '🎬 Analyze',        short: '🎬', shortLabel: 'Analyze' },
   { id: 'swap',      label: '🖼 Image Prompt',   short: '🖼', shortLabel: 'Image' },
@@ -19,6 +29,7 @@ const TABS = [
 export default function App() {
   const { state, set, showToast } = useStore()
   const isMobile = useMobile()
+  const models = MODELS_BY_PROVIDER[state.provider] || []
 
   return (
     <div style={{ display:'flex', flexDirection:'column', minHeight:'100dvh', overflow: isMobile ? 'visible' : 'hidden', height: isMobile ? 'auto' : '100vh', background:'linear-gradient(135deg,#e8eeff 0%,#f5eeff 50%,#eef5ff 100%)' }}>
@@ -67,10 +78,21 @@ export default function App() {
               {state.totalTokens.toLocaleString()} tok
             </div>
           )}
+          {/* Provider toggle (Gemini / Claude) */}
+          <div style={{ display:'flex', gap:3, padding:3, background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(100,120,220,0.2)', borderRadius:9 }}>
+            {PROVIDERS.map(p => (
+              <button key={p.id} onClick={() => set({ provider: p.id })} title={`Provider: ${p.label}`} style={{
+                padding: isMobile ? '4px 8px' : '5px 12px', fontSize: isMobile ? 10 : 11, fontWeight:700,
+                background: state.provider===p.id ? 'linear-gradient(135deg,#4f7ef7,#9b6bf5)' : 'transparent',
+                border:'none', color: state.provider===p.id ? 'white' : 'var(--text3)',
+                borderRadius:7, cursor:'pointer', whiteSpace:'nowrap',
+              }}>{p.label}</button>
+            ))}
+          </div>
           {/* Model picker — icon only on mobile */}
           {!isMobile && (
             <div style={{ display:'flex', gap:5 }}>
-              {MODELS.map(m => (
+              {models.map(m => (
                 <button key={m.id} onClick={() => set({model:m.id})} style={{
                   padding:'7px 14px', fontSize:12, fontWeight:600,
                   background: state.model===m.id ? 'linear-gradient(135deg,#4f7ef7,#9b6bf5)' : 'rgba(255,255,255,0.7)',
@@ -85,10 +107,10 @@ export default function App() {
           {/* Model select compact on mobile */}
           {isMobile && (
             <select value={state.model} onChange={e => set({model:e.target.value})} style={{ fontSize:10, padding:'4px 6px', background:'rgba(255,255,255,0.8)', border:'1px solid rgba(100,120,220,0.2)', borderRadius:7, color:'var(--text2)', outline:'none' }}>
-              {MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+              {models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
           )}
-          <ApiKeyInput value={state.apiKey} onChange={v => set({apiKey:v})} isMobile={isMobile} />
+          <ApiKeyInput value={state.apiKey} onChange={v => set({apiKey:v})} isMobile={isMobile} provider={state.provider} />
         </div>
       </header>
 
@@ -121,15 +143,16 @@ export default function App() {
   )
 }
 
-function ApiKeyInput({ value, onChange, isMobile }) {
+function ApiKeyInput({ value, onChange, isMobile, provider }) {
   const [show, setShow] = React.useState(false)
   const [focused, setFocused] = React.useState(false)
-  const saved = !!localStorage.getItem('videoprompt_apikey')
+  const saved = !!value
+  const label = provider === 'claude' ? 'Claude API key...' : 'Gemini API key...'
   return (
     <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
       <input
         type={show?'text':'password'}
-        placeholder={isMobile ? 'API key...' : 'Gemini API key...'}
+        placeholder={isMobile ? 'API key...' : label}
         value={value}
         onChange={e => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
