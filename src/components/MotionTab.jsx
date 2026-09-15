@@ -31,7 +31,7 @@ Zoom Rate: ${params.zoomRate}
 Camera Shake: ${params.shake}
 Cut Frequency: ${CUT_LABELS[params.cutFreq-1]}
 Transition: ${params.transition}
-${state.analysisData?.mainPrompt ? 'Video context: ' + state.analysisData.mainPrompt : ''}
+${state.analysisText ? 'Video context: ' + state.analysisText : ''}
 
 Write a detailed motion-focused video prompt with precise cinematic terminology. Include specific values and technical details.
 Also provide 6-8 motion descriptor tags.
@@ -82,7 +82,7 @@ TAGS: [tag1], [tag2], [tag3], [tag4], [tag5], [tag6]`
       <div style={{width:300,minWidth:300,display:'flex',flexDirection:'column',gap:12}}>
         <Card title="Motion Parameters" dotColor="var(--accent4)">
           <Slider label="Camera Speed" value={params.camSpeed} min={1} max={5} step={1} display={v => SPEED_LABELS[v-1]} onChange={v => setP('camSpeed',+v)} />
-          <Slider label="Motion Blur" value={params.motBlur} min={0} max={1} step={0.1} display={v=>v} onChange={v => setP('camSpeed', parseFloat(v)) || setP('motBlur',parseFloat(v))} />
+          <Slider label="Motion Blur" value={params.motBlur} min={0} max={1} step={0.1} display={v=>v} onChange={v => setP('motBlur',parseFloat(v))} />
           <Slider label="Pan Intensity" value={params.panInt} min={0} max={1} step={0.1} display={v=>v} onChange={v => setP('panInt',parseFloat(v))} />
           <Slider label="Zoom Rate" value={params.zoomRate} min={0} max={1} step={0.1} display={v=>v} onChange={v => setP('zoomRate',parseFloat(v))} />
           <Slider label="Camera Shake" value={params.shake} min={0} max={1} step={0.1} display={v=>v} onChange={v => setP('shake',parseFloat(v))} />

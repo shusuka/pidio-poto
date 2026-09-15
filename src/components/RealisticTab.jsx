@@ -39,7 +39,7 @@ const THEMES = [
 
 export default function RealisticTab({ state, set, showToast, isMobile }) {
   const [platform, setPlatform] = useState('kling')
-  const [theme, setTheme] = useState('disaster')
+  const [theme, setTheme] = useState('pov')
   const [customTheme, setCustomTheme] = useState('')
   const [basePrompt, setBasePrompt] = useState('')
   const [variations, setVariations] = useState(3) // how many variations to generate
@@ -116,11 +116,12 @@ STRICT RULES:
 - No bullet points (- or •)
 - Plain text only
 - Each variation must feel genuinely different from the others
+- Each variation must be self-contained: never write "same as above" or refer to another variation
 - Platform: ${platformLabel}`
 
       const { text, tokens } = await callAI({ provider: state.provider,
         apiKey: state.apiKey, model: state.model, prompt,
-        temperature: 0.85, maxTokens: 8192,
+        temperature: 0.85,
       })
       set(prev => ({ totalTokens: prev.totalTokens + tokens }))
 

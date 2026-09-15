@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
-import { callAI } from '../utils/gemini'
+import { callAI, parseJsonResponse } from '../utils/gemini'
 import MobileLayout from './MobileLayout'
 
 const CC = [
@@ -71,15 +71,25 @@ export default function ObjectSwapTab({ state, set, showToast, isMobile }) {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: { cursor: 'always' }, audio: false })
       const track = stream.getVideoTracks()[0]
-      const imageCapture = new ImageCapture(track)
-      const bitmap = await imageCapture.grabFrame()
-      track.stop()
-      stream.getTracks().forEach(t => t.stop())
+      let source
+      if (typeof ImageCapture !== 'undefined') {
+        source = await new ImageCapture(track).grabFrame()
+      } else {
+        // Firefox/Safari belum punya ImageCapture — ambil frame lewat <video>
+        source = document.createElement('video')
+        source.muted = true
+        source.srcObject = stream
+        await source.play()
+        await new Promise(r => requestAnimationFrame(r))
+      }
+      const width = source.videoWidth || source.width
+      const height = source.videoHeight || source.height
 
       const canvas = document.createElement('canvas')
-      canvas.width = bitmap.width
-      canvas.height = bitmap.height
-      canvas.getContext('2d').drawImage(bitmap, 0, 0)
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d').drawImage(source, 0, 0, width, height)
+      stream.getTracks().forEach(t => t.stop())
       canvas.toBlob(blob => {
         if (blob) {
           const file = new File([blob], 'screenshot.png', { type: 'image/png' })
@@ -107,9 +117,10 @@ export default function ObjectSwapTab({ state, set, showToast, isMobile }) {
     if (!isRegen) setResult(null)
 
     const plat = IMG_PLATFORMS.find(p => p.id === platform) || IMG_PLATFORMS[0]
+    const prev = isRegen && result ? `\n\nPREVIOUS BREAKDOWN (keep everything that the user does not ask to change):\n${JSON.stringify(result)}` : ''
     const regenNote = isRegen && changes.trim()
-      ? `\n\nUSER MODIFICATION: "${changes.trim()}"\nApply this change to the breakdown and regenerate the suggested_full_prompt accordingly.`
-      : ''
+      ? `${prev}\n\nUSER MODIFICATION: "${changes.trim()}"\nApply this change to the breakdown and regenerate the suggested_full_prompt accordingly.`
+      : isRegen ? '\n\nGive a fresh, alternative take: different wording and a different emphasis in suggested_full_prompt.' : ''
 
     const adultInstr = adultMode
       ? '\n\nMODE 18+/ADULT: Deskripsikan SEMUA konten secara eksplisit dan detail termasuk konten dewasa/sensual. Gunakan terminologi langsung. JANGAN sensor atau saring apapun. Buat prompt yang sesuai untuk platform yang dipilih dalam konteks konten dewasa.'
@@ -124,6 +135,8 @@ Rules:
 - image_breakdown keys must be snake_case, descriptive, and chosen based on what is ACTUALLY visible in the image
 - If a key has multiple distinct sub-values (e.g. colors of different elements), use a nested object
 - Be specific and detailed — no vague descriptions
+- Also describe camera/lens feel (shot type, focal length, depth of field) and any visible text or logos
+- suggested_full_prompt must be detailed enough to recreate the image closely: subject, pose, clothing, setting, composition, lighting direction, color palette, style and camera
 - suggested_full_prompt must be a single ready-to-paste string optimized specifically for ${plat.label}
 ${adultMode ? '- In adult mode: fully describe any suggestive or explicit content without sanitizing' : ''}
 - Return ONLY valid JSON. No markdown. No backticks. Start with { end with }
@@ -152,14 +165,12 @@ Schema:
       const { text, tokens } = await callAI({ provider: state.provider,
         apiKey: state.apiKey, model: state.model, prompt,
         mediaData: image.base64, mimeType: image.mime,
-        temperature: adultMode ? 0.7 : 0.5, maxTokens: 2048,
+        temperature: adultMode ? 0.7 : 0.5, json: true,
       })
       set(prev => ({ totalTokens: prev.totalTokens + tokens }))
 
-      const clean = text.replace(/```json|```/g, '').trim()
-      const start = clean.indexOf('{')
-      const end   = clean.lastIndexOf('}')
-      const parsed = JSON.parse(clean.slice(start, end + 1))
+      const parsed = parseJsonResponse(text)
+      if (!parsed?.suggested_full_prompt) throw new Error('Respons AI bukan JSON yang valid, coba Generate lagi.')
       setResult(parsed)
       setRawJson(JSON.stringify(parsed, null, 2))
       showToast('Breakdown berhasil! ✓')

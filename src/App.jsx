@@ -12,12 +12,13 @@ const PROVIDERS = [
 ]
 const MODELS_BY_PROVIDER = {
   gemini: [
-    { id: 'gemini-3-flash-preview',         label: '3 Flash ⚡' },
-    { id: 'gemini-2.5-flash-preview-05-20', label: '2.5 Flash' },
+    { id: 'gemini-3.8-flash',       label: '3.8 Flash ⚡' },
+    { id: 'gemini-3.1-pro-preview', label: '3.1 Pro' },
+    { id: 'gemini-2.5-flash',       label: '2.5 Flash' },
   ],
   claude: [
-    { id: 'claude-opus-4-8',   label: 'Opus 4.8 ⚡' },
-    { id: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+    { id: 'claude-opus-5',   label: 'Opus 5 ⚡' },
+    { id: 'claude-sonnet-5', label: 'Sonnet 5' },
   ],
 }
 const TABS = [

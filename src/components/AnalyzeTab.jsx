@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react'
 import {
-  callAI, fileToBase64, parseJsonResponse,
+  callAI, parseJsonResponse,
   buildAnalyzePromptText, buildInsightPrompt,
   extractVideoMetadata, PLATFORM_CONFIGS
 } from '../utils/gemini'
@@ -31,31 +31,11 @@ const CC = [
   { bg: 'rgba(255,120,60,0.08)',  border: 'rgba(255,120,60,0.2)',  accent: '#ff783c' },
 ]
 
-// All main prompt fields — rendered as rows, copied as one string via ad.mainPrompt
-const MAIN_PROMPT_FIELDS = [
-  { key: 'subject',           label: 'Subject',                  color: '#4f7ef7' },
-  { key: 'action',            label: 'Action',                   color: '#9b6bf5' },
-  { key: 'environment',       label: 'Environment',              color: '#18c98a' },
-  { key: 'cameraWork',        label: 'Camera Work',              color: '#f5a623' },
-  { key: 'timeOfDay',         label: 'Time of Day',              color: '#f0528a' },
-  { key: 'lighting',          label: 'Lighting',                 color: '#ff783c' },
-  { key: 'style',             label: 'Style',                    color: '#4f7ef7' },
-  { key: 'sound',             label: 'Sound / Music',            color: '#9b6bf5' },
-  { key: 'conversationLine1', label: 'Conversation Line Char 1', color: '#18c98a' },
-  { key: 'conversationLine2', label: 'Conversation Line Char 2', color: '#f5a623' },
-  // tech fields — same card, visually separated
-  { key: 'resolution',        label: 'Resolution',               color: '#f0528a', tech: true },
-  { key: 'aspectRatio',       label: 'Aspect Ratio',             color: '#ff783c', tech: true },
-  { key: 'orientation',       label: 'Orientation',              color: '#4f7ef7', tech: true },
-  { key: 'fps',               label: 'FPS',                      color: '#9b6bf5', tech: true },
-  { key: 'colorGrade',        label: 'Color Grade',              color: '#18c98a', tech: true },
-  { key: 'platformParams',    label: 'Platform Params',          color: '#f5a623', tech: true },
-]
-
 export default function AnalyzeTab({ state, set, showToast, isMobile }) {
   const fileRef = useRef(null)
   const [subTab, setSubTab]         = useState('prompt')
   const [clipCount, setClipCount]   = useState(3)
+  const [storyType, setStoryType]   = useState('viral')
   const [selectedTitle, setSelectedTitle] = useState('')
   const [storyOutput, setStoryOutput]     = useState('')
   const [isGenStory, setIsGenStory]       = useState(false)
@@ -71,6 +51,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
 
   async function loadVideo(file) {
     if (!file) return
+    if (state.videoUrl) URL.revokeObjectURL(state.videoUrl)
     const url = URL.createObjectURL(file)
     const meta = await extractVideoMetadata(file)
     set({ videoFile: file, videoUrl: url, videoMeta: meta, analysisData: null, analysisText: null })
@@ -82,21 +63,23 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
     set({ isAnalyzing: true, analysisText: null })
     setInsightData(null)
     try {
-      const b64  = await fileToBase64(state.videoFile)
       const mime = state.videoFile.type || 'video/mp4'
       const prompt = buildAnalyzePromptText({
         lang: state.lang || 'en', promptMode: state.promptMode || 'douyin',
         generateMode: state.generateMode || 'precise',
         cinematic: state.toggleCinematic, motionAnalysis: state.toggleMotion,
+        aiParams: state.toggleAiParams, focusArea: state.focusArea || 'all',
+        detailLevel: state.detailLevel || 'Ultra',
         videoMeta: state.videoMeta,
       })
-      const { text, tokens } = await callAI({ provider: state.provider,
-        apiKey: state.apiKey, model: state.model, prompt, mediaData: b64, mimeType: mime,
-        temperature: parseFloat(state.temperature) || 0.7, maxTokens: parseInt(state.maxTokens) || 8192,
+      const { text, tokens, truncated } = await callAI({ provider: state.provider,
+        apiKey: state.apiKey, model: state.model, prompt, mediaFile: state.videoFile, mimeType: mime,
+        temperature: state.generateMode === 'creative' ? 0.95 : parseFloat(state.temperature) || 0.7,
+        maxTokens: parseInt(state.maxTokens) || 32768,
         thinkingMode: state.generateMode === 'think',
       })
       set(prev => ({ analysisText: text, totalTokens: prev.totalTokens + tokens }))
-      showToast('Analisis selesai! ✓')
+      showToast(truncated ? 'Selesai, tapi output terpotong (batas token)' : 'Analisis selesai! ✓', truncated)
     } catch (e) { showToast('Error: ' + e.message, true) }
     set({ isAnalyzing: false })
   }
@@ -112,7 +95,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
         lang: state.lang || 'en',
         videoMeta: state.videoMeta,
       })
-      const { text, tokens } = await callAI({ provider: state.provider, apiKey: state.apiKey, model: state.model, prompt, temperature: 0.8, maxTokens: 4096 })
+      const { text, tokens } = await callAI({ provider: state.provider, apiKey: state.apiKey, model: state.model, prompt, temperature: 0.8, json: true })
       const parsed = parseJsonResponse(text)
       if (parsed) {
         setInsightData(parsed)
@@ -126,12 +109,33 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
   async function generateNewStory() {
     if (!state.analysisText) return showToast('Analyze video dulu!', true)
     if (!state.apiKey) return showToast('Masukkan API key!', true)
-    const title = selectedTitle || document.getElementById('customTitle')?.value?.trim() || 'Untitled'
-    const type  = document.getElementById('storyType')?.value || 'viral'
+    const title = selectedTitle.trim() || 'Untitled'
+    const type  = storyType
     setIsGenStory(true)
     try {
-      const prompt = `Based on this video analysis:\n${state.analysisText}\n\nCreate a ${type} style video story with ${clipCount} clips titled: "${title}"\nPlatform: ${state.promptMode}\nFor each clip:\n- Clip N [timestamp]: Scene prompt, Narration, Duration, Camera`
-      const { text, tokens } = await callAI({ provider: state.provider, apiKey: state.apiKey, model: state.model, prompt, temperature: 0.8, maxTokens: 4096 })
+      const platformName = PLATFORM_CONFIGS[state.promptMode]?.name || state.promptMode
+      const langInstr = state.lang === 'id' ? 'Write narration and titles in Bahasa Indonesia; scene prompts in English.'
+        : state.lang === 'bi' ? 'Write narration in Bahasa Indonesia, scene prompts in English.' : 'Write everything in English.'
+      const prompt = `You are a short-form video director and AI video prompt engineer for ${platformName}.
+
+<video_analysis>
+${state.analysisText}
+</video_analysis>
+
+Create a NEW ${type}-style video story titled "${title}", told in exactly ${clipCount} clips, that keeps the look, subject and atmosphere of the analyzed video but tells a fresh story.
+${langInstr}
+
+The story needs a hook in clip 1, rising tension or curiosity in the middle, and a satisfying payoff or twist in the final clip. Keep the same character appearance, wardrobe, location style and color grade in every clip so the clips cut together seamlessly.
+
+Plain text only, no asterisks or markdown. For each clip use exactly:
+
+CLIP N [start-end s]
+Scene Prompt : a complete, ready-to-paste ${platformName} prompt (subject, action, environment, camera, lighting, style)
+Narration : voice-over or on-screen text
+Camera : shot type and movement
+Sound : music and sound effects
+Transition : how it cuts to the next clip`
+      const { text, tokens } = await callAI({ provider: state.provider, apiKey: state.apiKey, model: state.model, prompt, temperature: 0.85 })
       setStoryOutput(text)
       set(prev => ({ totalTokens: prev.totalTokens + tokens }))
       showToast('Story berhasil!')
@@ -367,12 +371,12 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
           <>
             <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
               <GlassCard color={CC[0]} label="Custom Title" style={{ flex:2, minWidth:180 }}>
-                <input id="customTitle" placeholder="Judul video baru..." onChange={e => setSelectedTitle(e.target.value)}
+                <input value={selectedTitle} placeholder="Judul video baru..." onChange={e => setSelectedTitle(e.target.value)}
                   style={{ width:'100%', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(100,120,220,0.2)', color:'var(--text)', fontSize:12, padding:'7px 10px', borderRadius:8, outline:'none' }} />
               </GlassCard>
               <GlassCard color={CC[3]} label="Type" style={{ flex:1, minWidth:110 }}>
                 <div style={{ position:'relative' }}>
-                  <select id="storyType" style={{ width:'100%', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(100,120,220,0.2)', color:'var(--text)', fontSize:12, padding:'7px 22px 7px 9px', borderRadius:8, appearance:'none', outline:'none' }}>
+                  <select value={storyType} onChange={e => setStoryType(e.target.value)} style={{ width:'100%', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(100,120,220,0.2)', color:'var(--text)', fontSize:12, padding:'7px 22px 7px 9px', borderRadius:8, appearance:'none', outline:'none' }}>
                     {[['viral','Viral'],['cinematic','Cinematic'],['documentary','Docu'],['emotional','Emotional']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                   <span style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'var(--text3)', pointerEvents:'none', fontSize:10 }}>▼</span>
@@ -551,6 +555,7 @@ function InsightPanel({ data, copy, copied, exportTxt }) {
           </div>
         </GlassCard>
       )}
+      {data.crossPlatform && (
         <GlassCard color={CC[5]} label="🌐 Cross-Platform">
           {[['tiktok','TikTok','#f0528a'],['instagram','Instagram','#9b6bf5'],['youtube','YouTube','#e8304a'],['twitter','X/Twitter','#4f7ef7']].map(([key,label,color]) => data.crossPlatform[key] && (
             <div key={key} style={{ marginBottom: 8, background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '8px 10px' }}>
