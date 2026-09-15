@@ -1,4 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
+
+const WIDTH_KEY = 'videoprompt_panel_w'
+const DEFAULT_W = 360
+const MIN_W = 260
+const maxWidth = () => Math.max(MIN_W, Math.min(760, Math.round(window.innerWidth * 0.6)))
+const clampW = w => Math.min(maxWidth(), Math.max(MIN_W, w))
+
+function loadWidth() {
+  try { return clampW(Number(localStorage.getItem(WIDTH_KEY)) || DEFAULT_W) } catch { return DEFAULT_W }
+}
 
 /**
  * MobileLayout — wraps two-panel desktop layout into a responsive mobile layout.
@@ -7,13 +17,37 @@ import React, { useState } from 'react'
  */
 export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeBtn, drawerLabel = 'Settings' }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [width, setWidth] = useState(loadWidth)
+  const [dragging, setDragging] = useState(false)
+  const widthRef = useRef(width)
+
+  // Seret garis pemisah untuk mengatur lebar panel kiri (dobel-klik = reset)
+  function startResize(e) {
+    e.preventDefault()
+    const startX = e.clientX, startW = widthRef.current
+    setDragging(true)
+    const move = ev => { widthRef.current = clampW(startW + ev.clientX - startX); setWidth(widthRef.current) }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      setDragging(false)
+      try { localStorage.setItem(WIDTH_KEY, String(widthRef.current)) } catch { /* abaikan */ }
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+  function resetWidth() {
+    widthRef.current = clampW(DEFAULT_W)
+    setWidth(widthRef.current)
+    try { localStorage.setItem(WIDTH_KEY, String(widthRef.current)) } catch { /* abaikan */ }
+  }
 
   if (!isMobile) {
     // Desktop: original two-panel layout
     return (
-      <div style={{ display:'flex', height:'100%', overflow:'hidden' }}>
+      <div style={{ display:'flex', height:'100%', overflow:'hidden', userSelect: dragging ? 'none' : undefined, cursor: dragging ? 'col-resize' : undefined }}>
         {/* Left panel */}
-        <div style={{ width:290, minWidth:290, borderRight:'1px solid rgba(100,120,220,0.12)', display:'flex', flexDirection:'column', overflow:'hidden', background:'rgba(255,255,255,0.35)', backdropFilter:'blur(10px)' }}>
+        <div style={{ width, minWidth:width, display:'flex', flexDirection:'column', overflow:'hidden', background:'rgba(255,255,255,0.35)', backdropFilter:'blur(10px)' }}>
           <div style={{ flex:1, overflowY:'auto', padding:'14px 12px', display:'flex', flexDirection:'column', gap:12 }}>
             {leftPanel}
           </div>
@@ -22,6 +56,11 @@ export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeB
               {analyzeBtn}
             </div>
           )}
+        </div>
+        {/* Pemisah yang bisa diseret */}
+        <div onPointerDown={startResize} onDoubleClick={resetWidth} title="Seret untuk mengubah lebar panel · dobel-klik untuk reset"
+          className="panel-resizer" style={{ width:8, marginLeft:-4, marginRight:-4, cursor:'col-resize', position:'relative', zIndex:5, flexShrink:0, display:'flex', justifyContent:'center' }}>
+          <div style={{ width: dragging ? 3 : 1, height:'100%', background: dragging ? 'var(--accent)' : 'rgba(100,120,220,0.18)', transition:'background .15s' }} />
         </div>
         {/* Right panel */}
         <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>

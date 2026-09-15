@@ -42,6 +42,16 @@ const initialState = {
   videoUrl: null,
   videoMeta: null,
   analysisText: null,
+  analysisData: null,      // hasil analisis terstruktur (bisa diedit)
+  markSources: false,      // tandai [perkiraan]/[saran AI] di teks salinan
+  scenes: [],              // [{id,start,end,thumb,cut}]
+  selectedScenes: [],      // id adegan yang dipilih; kosong = semua
+  scenesStatus: null,
+  sceneSensitivity: 'medium',
+  transcript: [],          // [{id,start,end,speaker,text}]
+  transcriptLang: '',
+  subtitleOnVideo: true,
+  editor: null,            // proyek tab Editor (lihat EditorTab EMPTY_EDITOR)
   isAnalyzing: false,
   totalTokens: 0,
   activeTab: 'analyze',

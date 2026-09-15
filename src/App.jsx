@@ -4,6 +4,7 @@ import { useMobile } from './hooks/useMobile'
 import AnalyzeTab from './components/AnalyzeTab'
 import ObjectSwapTab from './components/ObjectSwapTab'
 import RealisticTab from './components/RealisticTab'
+import EditorTab from './components/EditorTab'
 import Toast from './components/Toast'
 
 const PROVIDERS = [
@@ -25,6 +26,7 @@ const TABS = [
   { id: 'analyze',   label: '🎬 Analyze',        short: '🎬', shortLabel: 'Analyze' },
   { id: 'swap',      label: '🖼 Image Prompt',   short: '🖼', shortLabel: 'Image' },
   { id: 'realistic', label: '✨ Video Variations', short: '✨', shortLabel: 'Variations' },
+  { id: 'editor',    label: '✂️ Editor',         short: '✂️', shortLabel: 'Editor' },
 ]
 
 export default function App() {
@@ -38,8 +40,9 @@ export default function App() {
       {/* ── TOP BAR ── */}
       <header style={{
         display:'flex', alignItems:'center', justifyContent:'space-between',
-        padding: isMobile ? '0 12px' : '0 20px',
-        height: isMobile ? 48 : 52,
+        padding: isMobile ? '6px 12px' : '0 20px',
+        height: isMobile ? 'auto' : 52,
+        flexWrap: isMobile ? 'wrap' : 'nowrap', rowGap: 6,
         flexShrink: 0,
         background:'rgba(255,255,255,0.7)',
         borderBottom:'1px solid rgba(100,120,220,0.15)',
@@ -73,7 +76,7 @@ export default function App() {
         </div>
 
         {/* Right side */}
-        <div style={{ display:'flex', alignItems:'center', gap: isMobile ? 6 : 8 }}>
+        <div style={{ display:'flex', alignItems:'center', gap: isMobile ? 6 : 8, ...(isMobile ? { width:'100%', minWidth:0 } : {}) }}>
           {state.totalTokens > 0 && !isMobile && (
             <div style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--mono)', padding:'3px 9px', background:'rgba(100,120,220,0.08)', borderRadius:6, border:'1px solid var(--border)' }}>
               {state.totalTokens.toLocaleString()} tok
@@ -120,6 +123,7 @@ export default function App() {
         {state.activeTab==='analyze'   && <AnalyzeTab    state={state} set={set} showToast={showToast} isMobile={isMobile} />}
         {state.activeTab==='swap'      && <ObjectSwapTab state={state} set={set} showToast={showToast} isMobile={isMobile} />}
         {state.activeTab==='realistic' && <RealisticTab  state={state} set={set} showToast={showToast} isMobile={isMobile} />}
+        {state.activeTab==='editor'    && <EditorTab     state={state} set={set} showToast={showToast} isMobile={isMobile} />}
       </main>
 
       {/* ── BOTTOM NAV (mobile only) ── */}
@@ -150,7 +154,7 @@ function ApiKeyInput({ value, onChange, isMobile, provider }) {
   const saved = !!value
   const label = provider === 'claude' ? 'Claude API key...' : 'Gemini API key...'
   return (
-    <div style={{ position:'relative', display:'flex', alignItems:'center' }}>
+    <div style={{ position:'relative', display:'flex', alignItems:'center', ...(isMobile ? { flex:1, minWidth:0 } : {}) }}>
       <input
         type={show?'text':'password'}
         placeholder={isMobile ? 'API key...' : label}
@@ -159,7 +163,7 @@ function ApiKeyInput({ value, onChange, isMobile, provider }) {
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         style={{
-          width: isMobile ? 110 : 185,
+          width: isMobile ? '100%' : 185,
           padding:'5px 46px 5px 11px', fontSize:11,
           fontFamily:'var(--mono)',
           background: focused ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.7)',

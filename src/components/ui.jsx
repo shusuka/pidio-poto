@@ -1,0 +1,81 @@
+import React from 'react'
+
+export const CC = [
+  { bg: 'rgba(79,126,247,0.08)',  border: 'rgba(79,126,247,0.2)',  accent: '#4f7ef7' },
+  { bg: 'rgba(155,107,245,0.08)', border: 'rgba(155,107,245,0.2)', accent: '#9b6bf5' },
+  { bg: 'rgba(24,201,138,0.08)',  border: 'rgba(24,201,138,0.2)',  accent: '#18c98a' },
+  { bg: 'rgba(245,166,35,0.08)',  border: 'rgba(245,166,35,0.2)',  accent: '#f5a623' },
+  { bg: 'rgba(240,82,138,0.08)',  border: 'rgba(240,82,138,0.2)',  accent: '#f0528a' },
+  { bg: 'rgba(255,120,60,0.08)',  border: 'rgba(255,120,60,0.2)',  accent: '#ff783c' },
+]
+
+export function GlassCard({ color, label, right, children, style = {} }) {
+  return (
+    <div style={{ background: color?.bg || 'rgba(255,255,255,0.55)', border: `1px solid ${color?.border || 'rgba(100,120,220,0.18)'}`, borderRadius: 12, padding: '11px 12px', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', boxShadow: '0 2px 12px rgba(80,100,200,0.07)', minWidth: 0, ...style }}>
+      {(label || right) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          {label && <div style={{ fontSize: 10, fontWeight: 700, color: color?.accent || 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.09em', flex: 1, minWidth: 0 }}>{label}</div>}
+          {right}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+export function Btn({ children, onClick, color = '#4f7ef7', active, disabled, small, title, style = {} }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} title={title} style={{
+      padding: small ? '3px 8px' : '6px 11px', fontSize: small ? 10 : 11, fontWeight: 600,
+      background: active ? `${color}1f` : 'rgba(255,255,255,0.7)',
+      border: `1px solid ${active ? color : 'rgba(100,120,220,0.2)'}`,
+      color: disabled ? 'var(--text3)' : active ? color : 'var(--text2)',
+      borderRadius: 7, cursor: disabled ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', opacity: disabled ? 0.6 : 1,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4, ...style,
+    }}>{children}</button>
+  )
+}
+
+export function PrimaryBtn({ children, onClick, disabled, gradient = 'linear-gradient(135deg,#4f7ef7,#9b6bf5)', style = {} }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} style={{
+      width: '100%', padding: 11, fontSize: 12, fontWeight: 700,
+      background: disabled ? 'rgba(100,120,220,0.15)' : gradient,
+      border: 'none', color: disabled ? 'var(--text3)' : 'white', borderRadius: 10,
+      cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, ...style,
+    }}>{children}</button>
+  )
+}
+
+export function Spin() {
+  return <span style={{ display: 'inline-block', animation: 'spin .7s linear infinite', fontSize: 13 }}>⟳</span>
+}
+
+export function Badge({ label, color, title, onClick }) {
+  return (
+    <span title={title} onClick={onClick} style={{
+      fontSize: 9, fontWeight: 700, color, background: `${color}14`, border: `1px solid ${color}40`,
+      borderRadius: 10, padding: '1px 6px', whiteSpace: 'nowrap', cursor: onClick ? 'pointer' : 'default', userSelect: 'none',
+    }}>{label}</span>
+  )
+}
+
+export function AutoText({ value, onChange, placeholder, style = {}, ...rest }) {
+  return (
+    <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={1} {...rest}
+      style={{
+        width: '100%', fieldSizing: 'content', minHeight: 30, resize: 'vertical', padding: '6px 8px', fontSize: 12, lineHeight: 1.55,
+        fontFamily: 'var(--sans)', color: 'var(--text)', background: 'rgba(255,255,255,0.65)',
+        border: '1px solid rgba(100,120,220,0.18)', borderRadius: 7, outline: 'none', ...style,
+      }} />
+  )
+}
+
+export const inputStyle = {
+  padding: '5px 7px', fontSize: 11, color: 'var(--text)', background: 'rgba(255,255,255,0.7)',
+  border: '1px solid rgba(100,120,220,0.2)', borderRadius: 7, outline: 'none', minWidth: 0,
+}
+
+export function Empty({ children }) {
+  return <div style={{ color: 'var(--text3)', fontSize: 12, fontStyle: 'italic', padding: '24px 8px', textAlign: 'center', lineHeight: 1.7 }}>{children}</div>
+}

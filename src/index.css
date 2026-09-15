@@ -90,3 +90,6 @@ select option { background: #fff; color: var(--text); }
 /* ── Pulse animation ── */
 @keyframes pulse { 0%,100%{opacity:.65} 50%{opacity:1} }
 @keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── Pemisah panel yang bisa diseret ── */
+.panel-resizer:hover > div { width: 3px !important; background: var(--accent) !important; }

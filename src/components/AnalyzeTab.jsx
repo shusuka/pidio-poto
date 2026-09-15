@@ -1,10 +1,18 @@
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import {
   callAI, parseJsonResponse,
-  buildAnalyzePromptText, buildInsightPrompt,
+  buildInsightPrompt,
   extractVideoMetadata, PLATFORM_CONFIGS
 } from '../utils/gemini'
+import { detectScenes, chunkScenes, sampleTimes, SENSITIVITY } from '../utils/media'
+import {
+  buildStructuredPrompt, normalizeAnalysis, normalizeScenePatch, analysisToText,
+  analysisContext, countMissing, toVTT,
+} from '../utils/analysis'
 import MobileLayout from './MobileLayout'
+import SceneStrip from './SceneStrip'
+import AnalysisEditor from './AnalysisEditor'
+import TranscriptPanel from './TranscriptPanel'
 
 const PLATFORMS = Object.entries(PLATFORM_CONFIGS).map(([id, cfg]) => ({
   id, label: cfg.name.split(' ')[0], fullName: cfg.name, color: cfg.color, bg: `${cfg.color}1a`
@@ -31,8 +39,13 @@ const CC = [
   { bg: 'rgba(255,120,60,0.08)',  border: 'rgba(255,120,60,0.2)',  accent: '#ff783c' },
 ]
 
+// Deteksi adegan tetap berjalan walau tab ditinggal; token mencegah hasil
+// deteksi video lama menimpa video baru.
+let detectToken = 0
+
 export default function AnalyzeTab({ state, set, showToast, isMobile }) {
   const fileRef = useRef(null)
+  const videoRef = useRef(null)
   const [subTab, setSubTab]         = useState('prompt')
   const [clipCount, setClipCount]   = useState(3)
   const [storyType, setStoryType]   = useState('viral')
@@ -42,47 +55,136 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
   const [insightData, setInsightData]     = useState(null)
   const [isGenInsight, setIsGenInsight]   = useState(false)
   const [copied, setCopied]               = useState({})
+  const [busyScene, setBusyScene]         = useState(null)
 
   const handleDrop = useCallback((e) => {
     e.preventDefault()
     const file = e.dataTransfer.files[0]
     if (file?.type.startsWith('video/')) loadVideo(file)
-  }, [])
+  }, [state.videoUrl])
+
+  // Subtitle transkrip langsung tampil di pemutar video
+  const vttUrl = useMemo(() => (
+    state.subtitleOnVideo && state.transcript?.length
+      ? URL.createObjectURL(new Blob([toVTT(state.transcript)], { type: 'text/vtt' }))
+      : null
+  ), [state.transcript, state.subtitleOnVideo])
+  useEffect(() => () => { if (vttUrl) URL.revokeObjectURL(vttUrl) }, [vttUrl])
 
   async function loadVideo(file) {
     if (!file) return
     if (state.videoUrl) URL.revokeObjectURL(state.videoUrl)
     const url = URL.createObjectURL(file)
     const meta = await extractVideoMetadata(file)
-    set({ videoFile: file, videoUrl: url, videoMeta: meta, analysisData: null, analysisText: null })
+    set({
+      videoFile: file, videoUrl: url, videoMeta: meta, analysisData: null, analysisText: null,
+      scenes: chunkScenes(meta.duration), selectedScenes: [], transcript: [],
+    })
+    runDetection(file, meta.duration, state.sceneSensitivity)
+  }
+
+  async function runDetection(file, duration, sensitivity = 'medium') {
+    const token = ++detectToken
+    set({ scenesStatus: { state: 'detecting', progress: 0 } })
+    let last = 0
+    try {
+      const scenes = await detectScenes(file, {
+        threshold: SENSITIVITY[sensitivity] ?? SENSITIVITY.medium,
+        isCancelled: () => token !== detectToken,
+        onProgress: p => { if (p - last >= 0.04) { last = p; set({ scenesStatus: { state: 'detecting', progress: p * 0.9 } }) } },
+      })
+      if (token !== detectToken || !scenes) return
+      set({ scenes, selectedScenes: [], scenesStatus: { state: 'done', progress: 1 } })
+    } catch {
+      if (token === detectToken) set({ scenes: chunkScenes(duration), scenesStatus: { state: 'done', progress: 1 } })
+    }
+  }
+
+  function clearVideo() {
+    detectToken++
+    set({ videoFile: null, videoUrl: null, videoMeta: null, analysisData: null, analysisText: null, scenes: [], selectedScenes: [], transcript: [], scenesStatus: null })
+  }
+
+  function seekVideo(t) {
+    const v = videoRef.current
+    if (!v) return
+    v.currentTime = t
+    v.play().catch(() => {})
+  }
+
+  const promptOpts = () => ({
+    lang: state.lang || 'en', promptMode: state.promptMode || 'douyin',
+    generateMode: state.generateMode || 'precise',
+    cinematic: state.toggleCinematic, motionAnalysis: state.toggleMotion,
+    aiParams: state.toggleAiParams, focusArea: state.focusArea || 'all',
+    detailLevel: state.detailLevel || 'Ultra', videoMeta: state.videoMeta,
+    transcript: state.transcript, framesOnly: state.provider === 'claude',
+  })
+  const callOpts = () => ({
+    provider: state.provider, apiKey: state.apiKey, model: state.model,
+    mediaFile: state.videoFile, mimeType: state.videoFile.type || 'video/mp4',
+    temperature: state.generateMode === 'creative' ? 0.95 : parseFloat(state.temperature) || 0.7,
+    maxTokens: parseInt(state.maxTokens) || 32768,
+    thinkingMode: state.generateMode === 'think', json: true,
+  })
+  const resolutionLabel = () => state.videoMeta?.width ? `${state.videoMeta.aspectRatio} (${state.videoMeta.width}x${state.videoMeta.height})` : ''
+
+  function setAnalysis(data, extra = {}) {
+    set({ analysisData: data, analysisText: analysisToText(data, { markSources: state.markSources, lang: state.lang }), ...extra })
   }
 
   async function analyzeVideo() {
     if (!state.videoFile) return showToast('Upload video dulu!', true)
     if (!state.apiKey)    return showToast('Masukkan API key!', true)
-    set({ isAnalyzing: true, analysisText: null })
+    const all = state.scenes?.length ? state.scenes : chunkScenes(state.videoMeta?.duration)
+    const picked = state.selectedScenes?.length ? all.filter(sc => state.selectedScenes.includes(sc.id)) : all
+    const clip = picked.length < all.length
+      ? { start: Math.min(...picked.map(sc => sc.start)), end: Math.max(...picked.map(sc => sc.end)) }
+      : null
+    set({ isAnalyzing: true })
     setInsightData(null)
     try {
-      const mime = state.videoFile.type || 'video/mp4'
-      const prompt = buildAnalyzePromptText({
-        lang: state.lang || 'en', promptMode: state.promptMode || 'douyin',
-        generateMode: state.generateMode || 'precise',
-        cinematic: state.toggleCinematic, motionAnalysis: state.toggleMotion,
-        aiParams: state.toggleAiParams, focusArea: state.focusArea || 'all',
-        detailLevel: state.detailLevel || 'Ultra',
-        videoMeta: state.videoMeta,
+      const prompt = buildStructuredPrompt({ ...promptOpts(), scenes: picked, clip })
+      const { text, tokens, truncated } = await callAI({
+        ...callOpts(), prompt, clip,
+        frameTimes: sampleTimes(picked, { every: 2, max: 40 }),
       })
-      const { text, tokens, truncated } = await callAI({ provider: state.provider,
-        apiKey: state.apiKey, model: state.model, prompt, mediaFile: state.videoFile, mimeType: mime,
-        temperature: state.generateMode === 'creative' ? 0.95 : parseFloat(state.temperature) || 0.7,
-        maxTokens: parseInt(state.maxTokens) || 32768,
-        thinkingMode: state.generateMode === 'think',
-      })
-      set(prev => ({ analysisText: text, totalTokens: prev.totalTokens + tokens }))
-      showToast(truncated ? 'Selesai, tapi output terpotong (batas token)' : 'Analisis selesai! ✓', truncated)
+      set(prev => ({ totalTokens: prev.totalTokens + tokens }))
+      const parsed = parseJsonResponse(text)
+      if (!parsed) {
+        throw new Error(truncated
+          ? 'Output terlalu panjang dan terpotong. Pilih lebih sedikit adegan atau turunkan Detail Level.'
+          : 'Respons AI bukan JSON yang valid. Coba lagi.')
+      }
+      const data = normalizeAnalysis(parsed, picked, { aiParams: state.toggleAiParams, resolution: resolutionLabel() })
+      setAnalysis(data)
+      showToast(data.missing ? `Selesai — ${data.missing} bagian kosong, cek hasilnya` : `Analisis ${picked.length} adegan selesai! ✓`, !!data.missing)
     } catch (e) { showToast('Error: ' + e.message, true) }
     set({ isAnalyzing: false })
   }
+
+  async function regenScene(id) {
+    const data = state.analysisData
+    const target = data?.scenes.find(sc => sc.id === id)
+    if (!target || !state.videoFile) return
+    if (!state.apiKey) return showToast('Masukkan API key!', true)
+    const scene = { id: target.id, start: target.start, end: target.end }
+    setBusyScene(id)
+    try {
+      const prompt = buildStructuredPrompt({ ...promptOpts(), mode: 'scene', scenes: [scene], clip: scene, globalContext: analysisContext(data) })
+      const { text, tokens } = await callAI({ ...callOpts(), prompt, clip: scene, frameTimes: sampleTimes([scene], { every: 1.5, max: 12 }) })
+      const parsed = parseJsonResponse(text)
+      if (!parsed) throw new Error('Respons AI bukan JSON yang valid.')
+      const patch = normalizeScenePatch(parsed, scene)
+      const next = { ...state.analysisData, scenes: state.analysisData.scenes.map(sc => sc.id === id ? patch : sc) }
+      next.missing = countMissing(next)
+      setAnalysis(next, { totalTokens: state.totalTokens + tokens })
+      showToast('Adegan diperbarui ✓')
+    } catch (e) { showToast('Error: ' + e.message, true) }
+    setBusyScene(null)
+  }
+
+  const thumbs = useMemo(() => Object.fromEntries((state.scenes || []).filter(sc => sc.thumb).map(sc => [sc.id, sc.thumb])), [state.scenes])
 
   async function generateInsight() {
     if (!state.analysisText) return showToast('Analyze video dulu!', true)
@@ -157,10 +259,6 @@ Transition : how it cuts to the next clip`
     a.download = name; a.click()
   }
 
-  function buildCopyAll() {
-    return state.analysisText || ''
-  }
-
   const curPlatform = PLATFORMS.find(p => p.id === (state.promptMode || 'douyin'))
   const isVulgar = state.generateMode === 'vulgar'
 
@@ -172,7 +270,9 @@ Transition : how it cuts to the next clip`
           onDragOver={e => e.preventDefault()} onDrop={handleDrop}
           style={{ borderRadius:10, overflow:'hidden', cursor:state.videoUrl?'default':'pointer', border:`1.5px dashed ${state.videoUrl?'#18c98a':'rgba(100,120,220,0.25)'}`, background:'rgba(255,255,255,0.5)', minHeight:state.videoUrl?'auto':90, display:'flex', alignItems:'center', justifyContent:'center' }}>
           {state.videoUrl
-            ? <video src={state.videoUrl} controls style={{ width:'100%', display:'block' }} />
+            ? <video ref={videoRef} src={state.videoUrl} controls style={{ width:'100%', display:'block', maxHeight:360, background:'#000' }}>
+                {vttUrl && <track key={vttUrl} kind="subtitles" src={vttUrl} srcLang={state.transcriptLang || 'id'} label="Transkrip" default />}
+              </video>
             : <div style={{ textAlign:'center', padding:16 }}>
                 <div style={{ fontSize:22, opacity:0.4 }}>🎬</div>
                 <div style={{ fontSize:11, color:'var(--text2)', marginTop:4 }}>Drop video or click</div>
@@ -187,7 +287,7 @@ Transition : how it cuts to the next clip`
               <Chip label="Fmt"  value={state.videoMeta.format}            color="#18c98a" />
               <Chip label="Size" value={state.videoMeta.size}              color="#f5a623" />
               <Chip label="Dur"  value={state.videoMeta.durationFormatted} color="#4f7ef7" />
-              <button onClick={() => set({ videoFile:null, videoUrl:null, videoMeta:null, analysisData:null, analysisText:null })}
+              <button onClick={clearVideo}
                 style={{ marginLeft:'auto', fontSize:10, background:'rgba(232,48,74,0.08)', border:'1px solid rgba(232,48,74,0.25)', color:'var(--danger)', borderRadius:6, padding:'3px 8px', cursor:'pointer' }}>✕</button>
             </div>
             {state.videoMeta.width && (
@@ -200,6 +300,18 @@ Transition : how it cuts to the next clip`
           </div>
         )}
       </GlassCard>
+
+      <SceneStrip
+        scenes={state.scenes}
+        status={state.scenesStatus}
+        selected={state.selectedScenes || []}
+        sensitivity={state.sceneSensitivity || 'medium'}
+        onToggle={id => set(prev => ({ selectedScenes: prev.selectedScenes.includes(id) ? prev.selectedScenes.filter(x => x !== id) : [...prev.selectedScenes, id] }))}
+        onSelectAll={() => set(prev => ({ selectedScenes: prev.scenes.map(sc => sc.id) }))}
+        onClear={() => set({ selectedScenes: [] })}
+        onSensitivity={lvl => { set({ sceneSensitivity: lvl }); if (state.videoFile) runDetection(state.videoFile, state.videoMeta?.duration, lvl) }}
+        onSeek={seekVideo}
+      />
 
       <GlassCard color={CC[3]} label="Platform">
         <div style={{ display:'flex', gap:5, flexWrap:'wrap' }}>
@@ -261,6 +373,15 @@ Transition : how it cuts to the next clip`
               color:state[key]?'#18c98a':'var(--text3)', borderRadius:20, cursor:'pointer',
             }}>{state[key]?'✓ ':''}{label}</button>
           ))}
+          <button onClick={() => {
+            const markSources = !state.markSources
+            set({ markSources, analysisText: state.analysisData ? analysisToText(state.analysisData, { markSources, lang: state.lang }) : state.analysisText })
+          }} title="Tambahkan tanda [perkiraan] / [saran AI] di teks salinan" style={{
+            padding:'3px 9px', fontSize:10, fontWeight:500,
+            background:state.markSources?'rgba(245,166,35,0.12)':'rgba(255,255,255,0.45)',
+            border:`1px solid ${state.markSources?'#f5a623':'rgba(100,120,220,0.15)'}`,
+            color:state.markSources?'#f5a623':'var(--text3)', borderRadius:20, cursor:'pointer',
+          }}>{state.markSources?'✓ ':''}Tandai perkiraan</button>
         </div>
         <div style={{ display:'flex', gap:5 }}>
           {[['en','EN'],['id','ID'],['bi','Bilingual']].map(([id,label]) => (
@@ -285,7 +406,7 @@ Transition : how it cuts to the next clip`
       boxShadow:state.isAnalyzing ? 'none' : isVulgar ? '0 6px 24px rgba(232,48,74,0.35)' : '0 6px 24px rgba(79,126,247,0.35)',
       display:'flex', alignItems:'center', justifyContent:'center', gap:8,
     }}>
-      {state.isAnalyzing ? <><Spin />Analyzing...</> : <><span>▶</span> Analyze Video</>}
+      {state.isAnalyzing ? <><Spin />Analyzing...</> : <><span>▶</span> Analyze {state.selectedScenes?.length ? `${state.selectedScenes.length} Adegan` : 'Video'}</>}
     </button>
   )
 
@@ -293,7 +414,7 @@ Transition : how it cuts to the next clip`
   const rightPanel = (
     <>
       <div style={{ display:'flex', padding:isMobile ? '8px 12px 0' : '10px 16px 0', borderBottom:'1px solid rgba(100,120,220,0.12)', flexShrink:0, background:'rgba(255,255,255,0.4)', backdropFilter:'blur(10px)', overflowX:'auto' }}>
-        {[['prompt', isMobile ? '📝 Prompt' : '📝 Prompt & Parts'],['detail', isMobile ? '💡 Insight' : '💡 Insight & Publishing'],['story','✨ Story']].map(([id,label]) => (
+        {[['prompt', isMobile ? '📝 Prompt' : '📝 Prompt & Adegan'],['transcript', isMobile ? '🗣 Transkrip' : '🗣 Transkrip & Subtitle'],['detail', isMobile ? '💡 Insight' : '💡 Insight & Publishing'],['story','✨ Story']].map(([id,label]) => (
           <button key={id} onClick={() => setSubTab(id)} style={{
             padding:isMobile ? '6px 11px' : '6px 14px', fontSize:12, fontWeight:500, border:'none',
             background:'none', color:subTab===id ? 'var(--accent)' : 'var(--text3)',
@@ -319,16 +440,30 @@ Transition : how it cuts to the next clip`
                 <ActionBtn onClick={analyzeVideo}>↺</ActionBtn>
               </div>
             </div>
-            <GlassCard color={CC[0]} label={`Prompt — ${curPlatform?.label||''}`}>
-              <OutputBox content={state.analysisText} loading={state.isAnalyzing} empty="Upload video dan klik Analyze untuk menghasilkan prompt." minH={isMobile ? 200 : 300} />
+            {state.analysisData && !state.isAnalyzing && (
+              <AnalysisEditor
+                data={state.analysisData}
+                thumbs={thumbs}
+                onChange={data => setAnalysis(data)}
+                onRegenScene={regenScene}
+                busyScene={busyScene}
+                onSeek={seekVideo}
+              />
+            )}
+            <GlassCard color={CC[0]} label={`Teks prompt siap salin — ${curPlatform?.label||''}`}>
+              <OutputBox content={state.analysisText} loading={state.isAnalyzing} empty="Upload video, pilih adegan (opsional), lalu klik Analyze. Hasilnya bisa dikoreksi per bagian di atas." minH={state.analysisData ? 160 : (isMobile ? 200 : 300)} style={{ maxHeight: state.analysisData ? 360 : 'none' }} />
               {state.analysisText && (
                 <div style={{ marginTop:6, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--mono)' }}>{state.analysisText.length} chars</span>
-                  <ActionBtn color="#18c98a" copied={copied.toswap} onClick={() => { copy(state.analysisText,'toswap'); showToast('Buka tab Object Swap!') }} small>→ Object Swap</ActionBtn>
+                  <ActionBtn color="#18c98a" copied={copied.toswap} onClick={() => { copy(state.analysisText,'toswap'); showToast('Buka tab Video Variations atau Editor!') }} small>📋 Salin</ActionBtn>
                 </div>
               )}
             </GlassCard>
           </>
+        )}
+
+        {subTab === 'transcript' && (
+          <TranscriptPanel state={state} set={set} showToast={showToast} videoRef={videoRef} />
         )}
 
         {subTab === 'detail' && (
