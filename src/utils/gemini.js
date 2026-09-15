@@ -265,31 +265,31 @@ function getAspectRatio(w, h) {
 
 export const PLATFORM_CONFIGS = {
   douyin: {
-    name: 'Douyin (抖音)', color: '#f5a623',
+    name: 'Douyin (抖音)', color: '#7e5106',
     note: 'Douyin: punchy, vertical-first phrasing; strong visual hook in the first 2 seconds; fast trendy pacing.',
     negative: '模糊，低质量，水印，静态，无聊，过曝',
     platformParams: 'ratio:9:16, duration:5-10s, style:viral',
   },
   jimeng: {
-    name: 'Jimeng AI (即梦)', color: '#18c98a',
+    name: 'Jimeng AI (即梦)', color: '#0c6747',
     note: 'Jimeng: scene→subject→action→camera→atmosphere. Include motion_intensity: 低/中/高.',
     negative: '模糊, 低质量, 水印, 噪点, 过曝, 变形',
     platformParams: 'motion_intensity:中, style:cinematic',
   },
   kling: {
-    name: 'Kling AI', color: '#9b6bf5',
+    name: 'Kling AI', color: '#661cf0',
     note: 'Kling: include motion_strength (0.0-1.0). Negative prompt is critical.',
     negative: 'blurry, distorted faces, bad anatomy, low quality, watermark, text, static, flickering',
     platformParams: 'motion_strength:0.5, duration:5s, cfg_scale:0.5',
   },
   runway: {
-    name: 'Runway Gen-3', color: '#f0528a',
+    name: 'Runway Gen-3', color: '#ac0f47',
     note: 'Runway format: [camera motion] [subject] [action] [environment] [style].',
     negative: 'blurry, bad lighting, overexposed, underexposed, artifacts, watermark',
     platformParams: 'camera_motion:push_in, style:cinematic',
   },
   gemini_ai: {
-    name: 'Google Veo (Gemini)', color: '#4f7ef7',
+    name: 'Google Veo (Gemini)', color: '#0a47e2',
     note: 'Veo: detailed scene + motion_guidance_scale + aspect_ratio required.',
     negative: 'low quality, blurry, artifacts, watermark, text overlay, unrealistic motion',
     platformParams: 'aspect_ratio:16:9, motion_guidance_scale:0.7',

@@ -3,23 +3,23 @@ import { callAI, parseJsonResponse } from '../utils/gemini'
 import MobileLayout from './MobileLayout'
 
 const CC = [
-  { bg:'rgba(79,126,247,0.08)',  border:'rgba(79,126,247,0.2)',  accent:'#4f7ef7' },
-  { bg:'rgba(155,107,245,0.08)', border:'rgba(155,107,245,0.2)', accent:'#9b6bf5' },
-  { bg:'rgba(24,201,138,0.08)',  border:'rgba(24,201,138,0.2)',  accent:'#18c98a' },
-  { bg:'rgba(245,166,35,0.08)',  border:'rgba(245,166,35,0.2)',  accent:'#f5a623' },
-  { bg:'rgba(240,82,138,0.08)',  border:'rgba(240,82,138,0.2)',  accent:'#f0528a' },
-  { bg:'rgba(255,120,60,0.08)',  border:'rgba(255,120,60,0.2)',  accent:'#ff783c' },
+  { bg:'rgba(79,126,247,0.08)',  border:'rgba(79,126,247,0.2)',  accent:'#0a47e2' },
+  { bg:'rgba(155,107,245,0.08)', border:'rgba(155,107,245,0.2)', accent:'#661cf0' },
+  { bg:'rgba(24,201,138,0.08)',  border:'rgba(24,201,138,0.2)',  accent:'#0c6747' },
+  { bg:'rgba(245,166,35,0.08)',  border:'rgba(245,166,35,0.2)',  accent:'#7e5106' },
+  { bg:'rgba(240,82,138,0.08)',  border:'rgba(240,82,138,0.2)',  accent:'#ac0f47' },
+  { bg:'rgba(255,120,60,0.08)',  border:'rgba(255,120,60,0.2)',  accent:'#a23200' },
 ]
 
 const IMG_PLATFORMS = [
-  { id:'gpt_dalle',      label:'GPT / DALL-E 3',    color:'#10a37f', note:'OpenAI DALL-E 3: describe subject, style, mood, lighting. Max 4000 chars.' },
-  { id:'gemini_imagen',  label:'Gemini Imagen 3',   color:'#4285f4', note:'Google Imagen 3: photorealistic detail, specify aspect ratio, lighting, and camera lens.' },
-  { id:'midjourney',     label:'Midjourney v7',     color:'#9b6bf5', note:'Midjourney: use --ar, --style, --chaos flags. Short vivid keywords work best.' },
-  { id:'flux',           label:'Flux 1.1 Pro',      color:'#f5a623', note:'Flux: natural language, highly detailed descriptions. Specify exact colors and textures.' },
-  { id:'stable_xl',      label:'Stable Diffusion XL', color:'#f0528a', note:'SDXL: subject first, then style tags. Add negative prompt for best quality.' },
+  { id:'gpt_dalle',      label:'GPT / DALL-E 3',    color:'#0a6b53', note:'OpenAI DALL-E 3: describe subject, style, mood, lighting. Max 4000 chars.' },
+  { id:'gemini_imagen',  label:'Gemini Imagen 3',   color:'#1558d6', note:'Google Imagen 3: photorealistic detail, specify aspect ratio, lighting, and camera lens.' },
+  { id:'midjourney',     label:'Midjourney v7',     color:'#661cf0', note:'Midjourney: use --ar, --style, --chaos flags. Short vivid keywords work best.' },
+  { id:'flux',           label:'Flux 1.1 Pro',      color:'#7e5106', note:'Flux: natural language, highly detailed descriptions. Specify exact colors and textures.' },
+  { id:'stable_xl',      label:'Stable Diffusion XL', color:'#ac0f47', note:'SDXL: subject first, then style tags. Add negative prompt for best quality.' },
 ]
 
-const FIELD_COLORS = ['#4f7ef7','#9b6bf5','#18c98a','#f5a623','#f0528a','#ff783c']
+const FIELD_COLORS = ['#0a47e2','#661cf0','#0c6747','#7e5106','#ac0f47','#a23200']
 
 export default function ObjectSwapTab({ state, set, showToast, isMobile }) {
   const [image, setImage]       = useState(null)
@@ -191,7 +191,7 @@ Schema:
   const generateBtn = (
     <button onClick={() => generate(false)} disabled={loading || !image} style={{
       width:'100%', padding:14, fontSize:14, fontWeight:700,
-      background: loading||!image ? 'rgba(100,120,220,0.15)' : adultMode ? 'linear-gradient(135deg,#e8304a,#9b6bf5)' : 'linear-gradient(135deg,#9b6bf5,#4f7ef7)',
+      background: loading||!image ? 'rgba(100,120,220,0.15)' : adultMode ? 'linear-gradient(135deg,#ae1329,#661cf0)' : 'linear-gradient(135deg,#661cf0,#0a47e2)',
       border:'none', color: loading||!image ? 'var(--text3)' : 'white',
       borderRadius:12, cursor: loading||!image ? 'not-allowed' : 'pointer',
       boxShadow: loading||!image ? 'none' : adultMode ? '0 6px 24px rgba(232,48,74,0.4)' : '0 6px 24px rgba(155,107,245,0.4)',
@@ -256,7 +256,7 @@ Schema:
               flex:1, padding:'8px 10px', fontSize:11, fontWeight:600,
               background: screenshotting ? 'rgba(100,120,220,0.1)' : 'rgba(79,126,247,0.1)',
               border:'1.5px solid rgba(79,126,247,0.3)',
-              color: screenshotting ? 'var(--text3)' : '#4f7ef7',
+              color: screenshotting ? 'var(--text3)' : '#0a47e2',
               borderRadius:8, cursor: screenshotting ? 'not-allowed' : 'pointer',
               display:'flex', alignItems:'center', justifyContent:'center', gap:5,
             }}
@@ -281,7 +281,7 @@ Schema:
             style={{
               flex:1, padding:'8px 10px', fontSize:11, fontWeight:600,
               background:'rgba(24,201,138,0.1)', border:'1.5px solid rgba(24,201,138,0.3)',
-              color:'#18c98a', borderRadius:8, cursor:'pointer',
+              color:'#0c6747', borderRadius:8, cursor:'pointer',
               display:'flex', alignItems:'center', justifyContent:'center', gap:5,
             }}
           >
@@ -314,12 +314,12 @@ Schema:
       </GlassCard>
 
       {/* 18+ Mode */}
-      <GlassCard color={adultMode ? { bg:'rgba(232,48,74,0.08)', border:'rgba(232,48,74,0.25)', accent:'#e8304a' } : CC[4]} label="Content Mode">
+      <GlassCard color={adultMode ? { bg:'rgba(232,48,74,0.08)', border:'rgba(232,48,74,0.25)', accent:'#ae1329' } : CC[4]} label="Content Mode">
         <button onClick={() => setAdultMode(a => !a)} style={{
           width:'100%', padding:'9px 12px', fontSize:12, fontWeight:600,
           background: adultMode ? 'rgba(232,48,74,0.12)' : 'rgba(255,255,255,0.6)',
-          border:`1.5px solid ${adultMode ? '#e8304a' : 'rgba(100,120,220,0.15)'}`,
-          color: adultMode ? '#e8304a' : 'var(--text2)',
+          border:`1.5px solid ${adultMode ? '#ae1329' : 'rgba(100,120,220,0.15)'}`,
+          color: adultMode ? '#ae1329' : 'var(--text2)',
           borderRadius:9, cursor:'pointer',
           display:'flex', justifyContent:'space-between', alignItems:'center',
         }}>
@@ -329,8 +329,8 @@ Schema:
           </span>
         </button>
         {adultMode && (
-          <div style={{ marginTop:6, padding:'6px 9px', background:'rgba(232,48,74,0.08)', border:'1px solid rgba(232,48,74,0.2)', borderRadius:7, fontSize:10, color:'#e8304a', lineHeight:1.5 }}>
-            🔞 Mode aktif — deskripsi dan prompt akan mencakup konten dewasa/eksplisit tanpa sensor.
+          <div style={{ marginTop:6, padding:'6px 9px', background:'rgba(232,48,74,0.08)', border:'1px solid rgba(232,48,74,0.2)', borderRadius:7, fontSize:10, color:'#ae1329', lineHeight:1.5 }}>
+            🔞 Mode aktif: deskripsi dan prompt akan mencakup konten dewasa/eksplisit tanpa sensor.
           </div>
         )}
       </GlassCard>
@@ -349,12 +349,12 @@ Schema:
               width:'100%', minHeight:72, padding:'8px 10px', fontSize:11,
               fontFamily:'var(--sans)', lineHeight:1.6, color:'var(--text)',
               background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(24,201,138,0.3)',
-              borderRadius:8, outline:'none', resize:'vertical', boxSizing:'border-box',
+              borderRadius:8, resize:'vertical', boxSizing:'border-box',
             }}
           />
           <button onClick={() => generate(true)} disabled={loading} style={{
             width:'100%', marginTop:8, padding:'10px 0', fontSize:12, fontWeight:700,
-            background: loading ? 'rgba(100,120,220,0.1)' : 'linear-gradient(135deg,#18c98a,#4f7ef7)',
+            background: loading ? 'rgba(100,120,220,0.1)' : 'linear-gradient(135deg,#0c6747,#0a47e2)',
             border:'none', color: loading ? 'var(--text3)' : 'white',
             borderRadius:9, cursor: loading ? 'not-allowed' : 'pointer',
             boxShadow: loading ? 'none' : '0 4px 16px rgba(24,201,138,0.3)',
@@ -400,9 +400,9 @@ Schema:
               <span style={{ fontSize:10, color: curPlat?.color || 'var(--text3)', fontWeight:600, marginLeft:8 }}>
                 {curPlat?.label}
               </span>
-              {adultMode && <span style={{ fontSize:9, color:'#e8304a', background:'rgba(232,48,74,0.1)', border:'1px solid rgba(232,48,74,0.25)', borderRadius:10, padding:'1px 6px', marginLeft:6 }}>18+</span>}
+              {adultMode && <span style={{ fontSize: 11, color:'#ae1329', background:'rgba(232,48,74,0.1)', border:'1px solid rgba(232,48,74,0.25)', borderRadius:10, padding:'1px 6px', marginLeft:6 }}>18+</span>}
             </span>
-            <ActionBtn color="#4f7ef7" copied={copied.rawjson} onClick={() => copy(rawJson, 'rawjson')}>
+            <ActionBtn color="#0a47e2" copied={copied.rawjson} onClick={() => copy(rawJson, 'rawjson')}>
               📋 Copy Raw JSON
             </ActionBtn>
           </div>
@@ -423,7 +423,7 @@ Schema:
               <ActionBtn color={CC[1].accent} copied={copied.prompt} onClick={() => copy(result.suggested_full_prompt, 'prompt')}>
                 📋 Copy Prompt
               </ActionBtn>
-              <ActionBtn color="#18c98a" copied={copied.promptGpt} onClick={() => {
+              <ActionBtn color="#0c6747" copied={copied.promptGpt} onClick={() => {
                 const formatted = `Platform: ${curPlat?.label}\n\nPrompt:\n${result.suggested_full_prompt}${result.negative_prompt ? `\n\nNegative Prompt:\n${result.negative_prompt}` : ''}`
                 copy(formatted, 'promptGpt')
               }}>
@@ -470,7 +470,7 @@ function FieldTree({ data, copied, onCopy, depth }) {
         if (typeof value === 'object' && value !== null) {
           return (
             <div key={key} style={{ borderLeft:`3px solid ${color}`, background:`${color}08`, borderRadius:8, padding:'8px 10px' }}>
-              <div style={{ fontSize:9, fontWeight:700, color, letterSpacing:'0.07em', marginBottom:6 }}>{label}</div>
+              <div style={{ fontSize: 11, fontWeight:700, color, letterSpacing:'0.07em', marginBottom:6 }}>{label}</div>
               <FieldTree data={value} copied={copied} onCopy={onCopy} depth={depth + 1} />
             </div>
           )
@@ -483,11 +483,11 @@ function FieldTree({ data, copied, onCopy, depth }) {
             display:'flex', gap:8, alignItems:'flex-start',
           }}>
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:9, fontWeight:700, color, letterSpacing:'0.07em', marginBottom:3 }}>{label}</div>
+              <div style={{ fontSize: 11, fontWeight:700, color, letterSpacing:'0.07em', marginBottom:3 }}>{label}</div>
               <div style={{ fontSize:12, color:'var(--text)', lineHeight:1.6, wordBreak:'break-word' }}>{String(value)}</div>
             </div>
             <button onClick={() => onCopy(String(value), copyKey)} style={{
-              flexShrink:0, padding:'3px 8px', fontSize:9, fontWeight:600,
+              flexShrink:0, padding:'3px 8px', fontSize: 11, fontWeight:600,
               background: copied[copyKey] ? `${color}18` : 'rgba(255,255,255,0.7)',
               border:`1px solid ${copied[copyKey] ? color : 'rgba(100,120,220,0.2)'}`,
               color: copied[copyKey] ? color : 'var(--text3)',
@@ -511,7 +511,7 @@ function GlassCard({ color, label, children, style = {} }) {
 
 function ActionBtn({ children, onClick, color, copied, small }) {
   return (
-    <button onClick={onClick} style={{ padding:small?'3px 9px':'6px 14px', fontSize:11, fontWeight:600, background:copied?`${color||'#18c98a'}18`:'rgba(255,255,255,0.7)', border:`1px solid ${copied?(color||'#18c98a'):'rgba(100,120,220,0.2)'}`, color:copied?(color||'#18c98a'):'var(--text2)', borderRadius:7, cursor:'pointer', whiteSpace:'nowrap', transition:'all 0.15s' }}>
+    <button onClick={onClick} style={{ padding:small?'3px 9px':'6px 14px', fontSize:11, fontWeight:600, background:copied?`${color||'#0c6747'}18`:'rgba(255,255,255,0.7)', border:`1px solid ${copied?(color||'#0c6747'):'rgba(100,120,220,0.2)'}`, color:copied?(color||'#0c6747'):'var(--text2)', borderRadius:7, cursor:'pointer', whiteSpace:'nowrap', transition:'all 0.15s' }}>
       {copied ? '✓ Copied' : children}
     </button>
   )

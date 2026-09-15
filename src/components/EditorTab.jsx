@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import MobileLayout from './MobileLayout'
-import { GlassCard, Btn, PrimaryBtn, Spin, Empty, inputStyle, CC } from './ui'
+import { GlassCard, Btn, PrimaryBtn, Spin, Empty, inputStyle, CC, pressable } from './ui'
 import { callAI, parseJsonResponse, extractVideoMetadata, PLATFORM_CONFIGS } from '../utils/gemini'
 import { buildHighlightPrompt, normalizeHighlight, speechRanges } from '../utils/analysis'
 import { fmtTime, downloadBlob, chunkScenes } from '../utils/media'
@@ -17,7 +17,7 @@ export const EMPTY_EDITOR = {
 }
 
 const ASPECTS = [['source', 'Asli'], ['9:16', '9:16'], ['16:9', '16:9'], ['1:1', '1:1'], ['4:5', '4:5']]
-const SRC_COLORS = ['#4f7ef7', '#9b6bf5', '#18c98a', '#f5a623', '#f0528a', '#ff783c']
+const SRC_COLORS = ['#0a47e2', '#661cf0', '#0c6747', '#7e5106', '#ac0f47', '#a23200']
 const HISTORY_LIMIT = 60
 
 function outputSize(aspect, src) {
@@ -84,7 +84,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
         if (now - lastT.current > 80 || !player.playing) { lastT.current = now; setT(time) }
       },
       onState: setPlaying,
-      onError: () => showToast('Browser menahan pemutaran — klik ▶ sekali lagi', true),
+      onError: () => showToast('Browser menahan pemutaran. Klik ▶ sekali lagi', true),
     })
     playerRef.current = player
     return () => player.destroy()
@@ -104,7 +104,8 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
       const k = e.key.toLowerCase()
       if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo() }
       else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo() }
-      else if (k === ' ') { e.preventDefault(); togglePlay() }
+      // Spasi di tombol yang sedang difokus = tekan tombol itu, bukan play/pause
+      else if (k === ' ' && !e.target.closest('button, [role="button"]')) { e.preventDefault(); togglePlay() }
       else if (k === 's') split()
       else if (k === 'delete') removeSelected()
     }
@@ -258,7 +259,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
         texts: hook ? [{ id: uid('x'), text: hook, start: 0, dur: 2.5, pos: 'top', size: 'L', hook: true }, ...d.texts.filter(x => !x.hook)] : d.texts,
       }))
       set(prev => ({ totalTokens: prev.totalTokens + tokens }))
-      showToast(`Highlight ${clips.length} klip ✓ — bisa di-undo`)
+      showToast(`Highlight ${clips.length} klip ✓ (bisa di-undo)`)
     } catch (e) { showToast('Error: ' + e.message, true) }
     setAutoBusy(false)
   }
@@ -292,7 +293,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
           {srcIds.map(id => (
             <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 7px', background: 'rgba(255,255,255,0.55)', borderRadius: 8, borderLeft: `3px solid ${colorOf(id)}` }}>
               <span style={{ flex: 1, minWidth: 0, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sources[id].name}>{id === 'main' ? '★ ' : ''}{sources[id].name}</span>
-              <span style={{ fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--text3)' }}>{fmtTime(sources[id].duration, 0)}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text3)' }}>{fmtTime(sources[id].duration, 0)}</span>
               <Btn small onClick={() => addFullClip(id)} disabled={busy} title="Tambah seluruh video ke timeline">＋</Btn>
               {id !== 'main' && <Btn small onClick={() => removeSource(id)} disabled={busy} title="Hapus sumber">✕</Btn>}
             </div>
@@ -317,7 +318,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
               <input type="range" min={0} max={0.8} step={0.05} value={gap.pad} onChange={e => setGap(g => ({ ...g, pad: +e.target.value }))} />
               <span style={{ fontFamily: 'var(--mono)' }}>{gap.pad.toFixed(2)}s</span>
             </div>
-            {!state.transcript?.length && <div style={{ fontSize: 9, color: '#f5a623', marginTop: 4 }}>Butuh transkrip (tab Analyze → Transkrip).</div>}
+            {!state.transcript?.length && <div style={{ fontSize: 11, color: '#7e5106', marginTop: 4 }}>Butuh transkrip (tab Analyze → Transkrip).</div>}
           </div>
           <div style={{ padding: 7, background: 'rgba(255,255,255,0.45)', borderRadius: 8 }}>
             <div style={{ display: 'flex', gap: 4, marginBottom: 6, alignItems: 'center' }}>
@@ -327,7 +328,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
             <Btn onClick={autoHighlight} disabled={busy || autoBusy || !sources.main} style={{ width: '100%', justifyContent: 'flex-start' }}>
               {autoBusy ? <><Spin /> Menyusun…</> : '🤖 Susun highlight otomatis (AI)'}
             </Btn>
-            <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 4, lineHeight: 1.5 }}>Paling akurat setelah Analyze dan/atau transkrip dibuat.</div>
+            <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, lineHeight: 1.5 }}>Paling akurat setelah Analyze dan/atau transkrip dibuat.</div>
           </div>
         </div>
       </GlassCard>
@@ -335,12 +336,12 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
       <GlassCard color={CC[3]} label="Teks & subtitle">
         <Btn onClick={addText} disabled={busy || !doc.clips.length} style={{ width: '100%' }}>＋ Tambah teks di playhead</Btn>
         <div style={{ display: 'flex', gap: 5, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Btn small active={doc.subtitles} color="#18c98a" disabled={!state.transcript?.length} onClick={() => commit(d => ({ ...d, subtitles: !d.subtitles }))}>
+          <Btn small active={doc.subtitles} color="#0c6747" disabled={!state.transcript?.length} onClick={() => commit(d => ({ ...d, subtitles: !d.subtitles }))}>
             {doc.subtitles ? '✓ ' : ''}Subtitle transkrip
           </Btn>
           {['S', 'M', 'L'].map(sz => <Btn key={sz} small active={doc.subtitleSize === sz} onClick={() => commit(d => ({ ...d, subtitleSize: sz }))}>{sz}</Btn>)}
         </div>
-        {!state.transcript?.length && <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 4 }}>Subtitle diambil dari transkrip yang sudah dikoreksi.</div>}
+        {!state.transcript?.length && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Subtitle diambil dari transkrip yang sudah dikoreksi.</div>}
       </GlassCard>
 
       <GlassCard color={CC[1]} label="Audio">
@@ -373,7 +374,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
   )
 
   const exportBtn = (
-    <PrimaryBtn onClick={exportVideo} disabled={busy || !doc.clips.length} gradient="linear-gradient(135deg,#18c98a,#4f7ef7)">
+    <PrimaryBtn onClick={exportVideo} disabled={busy || !doc.clips.length} gradient="linear-gradient(135deg,#0c6747,#0a47e2)">
       {busy ? <><Spin /> Merekam {Math.round(exporting * 100)}%</> : `⬇ Ekspor video (${fmtTime(duration, 0)})`}
     </PrimaryBtn>
   )
@@ -388,7 +389,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
 
       {busy && (
         <div style={{ padding: '8px 10px', borderRadius: 9, background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.35)', fontSize: 11, color: 'var(--text2)' }}>
-          ⏺ Merekam secara real-time — jangan pindah tab atau minimalkan jendela sampai selesai.
+          ⏺ Merekam secara real-time. Jangan pindah tab atau minimalkan jendela sampai selesai.
         </div>
       )}
 
@@ -410,7 +411,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
         <Btn onClick={() => move(-1)} disabled={busy || !selClip}>◀</Btn>
         <Btn onClick={() => move(1)} disabled={busy || !selClip}>▶</Btn>
         <Btn onClick={duplicate} disabled={busy || !selClip}>⧉</Btn>
-        <Btn onClick={removeSelected} disabled={busy || !sel} color="#e8304a" title="Hapus (Delete)">🗑</Btn>
+        <Btn onClick={removeSelected} disabled={busy || !sel} color="#ae1329" title="Hapus (Delete)">🗑</Btn>
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text3)' }}>
           🔍 <input type="range" min={8} max={160} value={pps} onChange={e => setPps(+e.target.value)} style={{ width: 90 }} />
         </span>
@@ -430,7 +431,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
             {/* penggaris */}
             <div data-lane="1" style={{ position: 'relative', height: 16 }}>
               {Array.from({ length: Math.floor(duration / rulerStep(pps)) + 1 }, (_, i) => i * rulerStep(pps)).map(sec => (
-                <span key={sec} data-lane="1" style={{ position: 'absolute', left: sec * pps, fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--text3)', borderLeft: '1px solid rgba(100,120,220,0.3)', paddingLeft: 2, height: 14 }}>{fmtTime(sec, 0)}</span>
+                <span key={sec} data-lane="1" style={{ position: 'absolute', left: sec * pps, fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text3)', borderLeft: '1px solid rgba(100,120,220,0.3)', paddingLeft: 2, height: 14 }}>{fmtTime(sec, 0)}</span>
               ))}
             </div>
             {/* klip */}
@@ -443,7 +444,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
                     onDragStart={() => { dragId.current = c.id }}
                     onDragOver={e => e.preventDefault()}
                     onDrop={e => onDrop(c.id, e)}
-                    onClick={e => { e.stopPropagation(); setSel({ kind: 'clip', id: c.id }) }}
+                    {...pressable(e => { e.stopPropagation(); setSel({ kind: 'clip', id: c.id }) })} data-timeline="1" aria-pressed={on}
                     title={`${sources[c.src]?.name || c.src} · ${fmtTime(c.in)}–${fmtTime(c.out)}${c.note ? `\n${c.note}` : ''}`}
                     style={{
                       position: 'absolute', left: starts[i] * pps, width: Math.max(4, clipDur(c) * pps - 2), top: 0, bottom: 0,
@@ -451,7 +452,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
                       cursor: 'grab', overflow: 'hidden', padding: '3px 5px', boxSizing: 'border-box',
                     }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>{i + 1}</div>
-                    <div style={{ fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{clipDur(c).toFixed(1)}s</div>
+                    <div style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{clipDur(c).toFixed(1)}s</div>
                   </div>
                 )
               })}
@@ -461,8 +462,8 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
               {doc.texts.map(x => {
                 const on = sel?.kind === 'text' && sel.id === x.id
                 return (
-                  <div key={x.id} onClick={e => { e.stopPropagation(); setSel({ kind: 'text', id: x.id }) }} title={x.text}
-                    style={{ position: 'absolute', left: x.start * pps, width: Math.max(10, x.dur * pps - 2), top: 0, bottom: 0, background: on ? 'rgba(245,166,35,0.45)' : 'rgba(245,166,35,0.22)', border: `1px solid ${on ? '#f5a623' : 'rgba(245,166,35,0.5)'}`, borderRadius: 5, fontSize: 9, padding: '3px 5px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer', boxSizing: 'border-box' }}>
+                  <div key={x.id} {...pressable(e => { e.stopPropagation(); setSel({ kind: 'text', id: x.id }) })} data-timeline="1" aria-pressed={on} title={x.text}
+                    style={{ position: 'absolute', left: x.start * pps, width: Math.max(10, x.dur * pps - 2), top: 0, bottom: 0, background: on ? 'rgba(245,166,35,0.45)' : 'rgba(245,166,35,0.22)', border: `1px solid ${on ? '#7e5106' : 'rgba(245,166,35,0.5)'}`, borderRadius: 5, fontSize: 11, padding: '3px 5px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer', boxSizing: 'border-box' }}>
                     T {x.text}
                   </div>
                 )
@@ -477,7 +478,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
               </div>
             )}
             {/* playhead */}
-            <div style={{ position: 'absolute', top: 0, bottom: 0, left: 10 + t * pps, width: 2, background: '#e8304a', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: 0, bottom: 0, left: 10 + t * pps, width: 2, background: '#ae1329', pointerEvents: 'none' }} />
           </div>
         </div>
       )}
@@ -542,7 +543,7 @@ function NumField({ label, value, onCommit }) {
   useEffect(() => setDraft(String(Math.round(value * 100) / 100)), [value])
   const commit = () => { const n = parseFloat(draft); if (isFinite(n)) onCommit(Math.round(n * 100) / 100); else setDraft(String(value)) }
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 9, color: 'var(--text3)', fontWeight: 600 }}>
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>
       {label}
       <input value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
         style={{ ...inputStyle, width: 90, fontFamily: 'var(--mono)' }} />

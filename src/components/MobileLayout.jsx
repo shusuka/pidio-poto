@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 
 const WIDTH_KEY = 'videoprompt_panel_w'
 const DEFAULT_W = 360
@@ -20,6 +20,14 @@ export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeB
   const [width, setWidth] = useState(loadWidth)
   const [dragging, setDragging] = useState(false)
   const widthRef = useRef(width)
+
+  // Drawer bisa ditutup dengan Escape
+  useEffect(() => {
+    if (!drawerOpen) return
+    const onKey = e => { if (e.key === 'Escape') setDrawerOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [drawerOpen])
 
   // Seret garis pemisah untuk mengatur lebar panel kiri (dobel-klik = reset)
   function startResize(e) {
@@ -78,10 +86,11 @@ export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeB
       <div className={`drawer-overlay${drawerOpen ? ' open' : ''}`} onClick={() => setDrawerOpen(false)} />
 
       {/* Slide-in drawer */}
-      <div className={`side-drawer${drawerOpen ? ' open' : ''}`}>
+      {/* React 18 belum kenal prop inert boolean, jadi pakai string kosong */}
+      <div className={`side-drawer${drawerOpen ? ' open' : ''}`} inert={drawerOpen ? undefined : ''}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 14px 10px', flexShrink:0, borderBottom:'1px solid rgba(100,120,220,0.12)' }}>
           <span style={{ fontSize:12, fontWeight:700, color:'var(--text)', letterSpacing:'-0.01em' }}>{drawerLabel}</span>
-          <button onClick={() => setDrawerOpen(false)} style={{ background:'none', border:'none', fontSize:18, color:'var(--text3)', cursor:'pointer', lineHeight:1, padding:'2px 4px' }}>✕</button>
+          <button onClick={() => setDrawerOpen(false)} aria-label="Tutup pengaturan" style={{ background:'none', border:'none', fontSize:18, color:'var(--text3)', cursor:'pointer', lineHeight:1, padding:'2px 4px' }}>✕</button>
         </div>
         <div style={{ flex:1, overflowY:'auto', padding:'12px 12px', display:'flex', flexDirection:'column', gap:10 }}>
           {leftPanel}

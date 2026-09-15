@@ -1,12 +1,12 @@
 import React from 'react'
 
 export const CC = [
-  { bg: 'rgba(79,126,247,0.08)',  border: 'rgba(79,126,247,0.2)',  accent: '#4f7ef7' },
-  { bg: 'rgba(155,107,245,0.08)', border: 'rgba(155,107,245,0.2)', accent: '#9b6bf5' },
-  { bg: 'rgba(24,201,138,0.08)',  border: 'rgba(24,201,138,0.2)',  accent: '#18c98a' },
-  { bg: 'rgba(245,166,35,0.08)',  border: 'rgba(245,166,35,0.2)',  accent: '#f5a623' },
-  { bg: 'rgba(240,82,138,0.08)',  border: 'rgba(240,82,138,0.2)',  accent: '#f0528a' },
-  { bg: 'rgba(255,120,60,0.08)',  border: 'rgba(255,120,60,0.2)',  accent: '#ff783c' },
+  { bg: 'rgba(79,126,247,0.08)',  border: 'rgba(79,126,247,0.2)',  accent: '#0a47e2' },
+  { bg: 'rgba(155,107,245,0.08)', border: 'rgba(155,107,245,0.2)', accent: '#661cf0' },
+  { bg: 'rgba(24,201,138,0.08)',  border: 'rgba(24,201,138,0.2)',  accent: '#0c6747' },
+  { bg: 'rgba(245,166,35,0.08)',  border: 'rgba(245,166,35,0.2)',  accent: '#7e5106' },
+  { bg: 'rgba(240,82,138,0.08)',  border: 'rgba(240,82,138,0.2)',  accent: '#ac0f47' },
+  { bg: 'rgba(255,120,60,0.08)',  border: 'rgba(255,120,60,0.2)',  accent: '#a23200' },
 ]
 
 export function GlassCard({ color, label, right, children, style = {} }) {
@@ -23,7 +23,7 @@ export function GlassCard({ color, label, right, children, style = {} }) {
   )
 }
 
-export function Btn({ children, onClick, color = '#4f7ef7', active, disabled, small, title, style = {} }) {
+export function Btn({ children, onClick, color = '#0a47e2', active, disabled, small, title, style = {} }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={title} style={{
       padding: small ? '3px 8px' : '6px 11px', fontSize: small ? 10 : 11, fontWeight: 600,
@@ -36,7 +36,7 @@ export function Btn({ children, onClick, color = '#4f7ef7', active, disabled, sm
   )
 }
 
-export function PrimaryBtn({ children, onClick, disabled, gradient = 'linear-gradient(135deg,#4f7ef7,#9b6bf5)', style = {} }) {
+export function PrimaryBtn({ children, onClick, disabled, gradient = 'linear-gradient(135deg,#0a47e2,#661cf0)', style = {} }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} style={{
       width: '100%', padding: 11, fontSize: 12, fontWeight: 700,
@@ -51,10 +51,23 @@ export function Spin() {
   return <span style={{ display: 'inline-block', animation: 'spin .7s linear infinite', fontSize: 13 }}>⟳</span>
 }
 
+// Elemen non-<button> yang bisa diklik: bisa dicapai Tab dan ditekan Enter/Spasi.
+// Tombol kecil di dalamnya tidak ikut memicu karena dicek e.target.
+export function pressable(onActivate) {
+  return {
+    role: 'button', tabIndex: 0, onClick: onActivate,
+    onKeyDown: e => {
+      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+      e.preventDefault()
+      onActivate(e)
+    },
+  }
+}
+
 export function Badge({ label, color, title, onClick }) {
   return (
-    <span title={title} onClick={onClick} style={{
-      fontSize: 9, fontWeight: 700, color, background: `${color}14`, border: `1px solid ${color}40`,
+    <span title={title} {...(onClick ? pressable(onClick) : {})} style={{
+      fontSize: 11, fontWeight: 700, color, background: `${color}14`, border: `1px solid ${color}40`,
       borderRadius: 10, padding: '1px 6px', whiteSpace: 'nowrap', cursor: onClick ? 'pointer' : 'default', userSelect: 'none',
     }}>{label}</span>
   )
@@ -66,14 +79,14 @@ export function AutoText({ value, onChange, placeholder, style = {}, ...rest }) 
       style={{
         width: '100%', fieldSizing: 'content', minHeight: 30, resize: 'vertical', padding: '6px 8px', fontSize: 12, lineHeight: 1.55,
         fontFamily: 'var(--sans)', color: 'var(--text)', background: 'rgba(255,255,255,0.65)',
-        border: '1px solid rgba(100,120,220,0.18)', borderRadius: 7, outline: 'none', ...style,
+        border: '1px solid rgba(100,120,220,0.18)', borderRadius: 7, ...style,
       }} />
   )
 }
 
 export const inputStyle = {
   padding: '5px 7px', fontSize: 11, color: 'var(--text)', background: 'rgba(255,255,255,0.7)',
-  border: '1px solid rgba(100,120,220,0.2)', borderRadius: 7, outline: 'none', minWidth: 0,
+  border: '1px solid rgba(100,120,220,0.2)', borderRadius: 7, minWidth: 0,
 }
 
 export function Empty({ children }) {

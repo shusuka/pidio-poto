@@ -54,9 +54,9 @@ export default function App() {
         {/* Logo */}
         <div style={{ display:'flex', alignItems:'center', gap: isMobile ? 8 : 16 }}>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg,#4f7ef7,#9b6bf5)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'white', fontFamily:'var(--mono)', boxShadow:'0 4px 12px rgba(100,130,250,0.35)', flexShrink:0 }}>VP</div>
+            <div style={{ width:28, height:28, borderRadius:8, background:'linear-gradient(135deg,#0a47e2,#661cf0)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'white', fontFamily:'var(--mono)', boxShadow:'0 4px 12px rgba(100,130,250,0.35)', flexShrink:0 }}>VP</div>
             <span style={{ fontSize: isMobile ? 13 : 14, fontWeight:700, color:'var(--text)', letterSpacing:'-0.02em' }}>VideoPrompt</span>
-            <span style={{ fontSize:9, color:'#9b6bf5', background:'rgba(155,107,245,0.12)', padding:'2px 6px', borderRadius:10, fontWeight:600, border:'1px solid rgba(155,107,245,0.25)' }}>PRO</span>
+            <span style={{ fontSize: 11, color:'#661cf0', background:'rgba(155,107,245,0.12)', padding:'2px 6px', borderRadius:10, fontWeight:600, border:'1px solid rgba(155,107,245,0.25)' }}>PRO</span>
           </div>
           {/* Desktop nav only */}
           {!isMobile && (
@@ -87,7 +87,7 @@ export default function App() {
             {PROVIDERS.map(p => (
               <button key={p.id} onClick={() => set({ provider: p.id })} title={`Provider: ${p.label}`} style={{
                 padding: isMobile ? '4px 8px' : '5px 12px', fontSize: isMobile ? 10 : 11, fontWeight:700,
-                background: state.provider===p.id ? 'linear-gradient(135deg,#4f7ef7,#9b6bf5)' : 'transparent',
+                background: state.provider===p.id ? 'linear-gradient(135deg,#0a47e2,#661cf0)' : 'transparent',
                 border:'none', color: state.provider===p.id ? 'white' : 'var(--text3)',
                 borderRadius:7, cursor:'pointer', whiteSpace:'nowrap',
               }}>{p.label}</button>
@@ -99,7 +99,7 @@ export default function App() {
               {models.map(m => (
                 <button key={m.id} onClick={() => set({model:m.id})} style={{
                   padding:'7px 14px', fontSize:12, fontWeight:600,
-                  background: state.model===m.id ? 'linear-gradient(135deg,#4f7ef7,#9b6bf5)' : 'rgba(255,255,255,0.7)',
+                  background: state.model===m.id ? 'linear-gradient(135deg,#0a47e2,#661cf0)' : 'rgba(255,255,255,0.7)',
                   border:`1.5px solid ${state.model===m.id ? 'transparent' : 'rgba(100,120,220,0.2)'}`,
                   color: state.model===m.id ? 'white' : 'var(--text2)',
                   borderRadius:9, cursor:'pointer', whiteSpace:'nowrap',
@@ -110,7 +110,7 @@ export default function App() {
           )}
           {/* Model select compact on mobile */}
           {isMobile && (
-            <select value={state.model} onChange={e => set({model:e.target.value})} style={{ fontSize:10, padding:'4px 6px', background:'rgba(255,255,255,0.8)', border:'1px solid rgba(100,120,220,0.2)', borderRadius:7, color:'var(--text2)', outline:'none' }}>
+            <select value={state.model} onChange={e => set({model:e.target.value})} style={{ fontSize:10, padding:'4px 6px', background:'rgba(255,255,255,0.8)', border:'1px solid rgba(100,120,220,0.2)', borderRadius:7, color:'var(--text2)', }}>
               {models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
           )}
@@ -168,12 +168,12 @@ function ApiKeyInput({ value, onChange, isMobile, provider }) {
           fontFamily:'var(--mono)',
           background: focused ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.7)',
           border:`1.5px solid ${focused ? 'var(--accent)' : saved ? 'rgba(24,201,138,0.4)' : 'rgba(100,120,220,0.2)'}`,
-          borderRadius:8, color:'var(--text)', outline:'none', transition:'all 0.15s',
+          borderRadius:8, color:'var(--text)', transition:'all 0.15s',
           boxShadow: focused ? '0 0 0 3px rgba(79,126,247,0.12)' : 'none',
         }}
       />
       {saved && !focused && (
-        <span style={{ position:'absolute', left:8, fontSize:9, color:'#18c98a', fontWeight:700, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>●</span>
+        <span style={{ position:'absolute', left:8, fontSize: 11, color:'#0c6747', fontWeight:700, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>●</span>
       )}
       <div style={{ position:'absolute', right:0, display:'flex', alignItems:'center' }}>
         <button onClick={() => setShow(s=>!s)} style={{ background:'none', border:'none', color:'var(--text3)', cursor:'pointer', fontSize:13, padding:'0 4px' }}>{show?'🙈':'👁'}</button>

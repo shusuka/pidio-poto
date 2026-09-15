@@ -13,6 +13,7 @@ import MobileLayout from './MobileLayout'
 import SceneStrip from './SceneStrip'
 import AnalysisEditor from './AnalysisEditor'
 import TranscriptPanel from './TranscriptPanel'
+import { pressable } from './ui'
 
 const PLATFORMS = Object.entries(PLATFORM_CONFIGS).map(([id, cfg]) => ({
   id, label: cfg.name.split(' ')[0], fullName: cfg.name, color: cfg.color, bg: `${cfg.color}1a`
@@ -31,12 +32,12 @@ const FOCUS_AREAS = [
   { value: 'mood', label: 'Mood & Atmosphere' }, { value: 'env', label: 'Environment' },
 ]
 const CC = [
-  { bg: 'rgba(79,126,247,0.08)',  border: 'rgba(79,126,247,0.2)',  accent: '#4f7ef7' },
-  { bg: 'rgba(155,107,245,0.08)', border: 'rgba(155,107,245,0.2)', accent: '#9b6bf5' },
-  { bg: 'rgba(24,201,138,0.08)',  border: 'rgba(24,201,138,0.2)',  accent: '#18c98a' },
-  { bg: 'rgba(245,166,35,0.08)',  border: 'rgba(245,166,35,0.2)',  accent: '#f5a623' },
-  { bg: 'rgba(240,82,138,0.08)',  border: 'rgba(240,82,138,0.2)',  accent: '#f0528a' },
-  { bg: 'rgba(255,120,60,0.08)',  border: 'rgba(255,120,60,0.2)',  accent: '#ff783c' },
+  { bg: 'rgba(79,126,247,0.08)',  border: 'rgba(79,126,247,0.2)',  accent: '#0a47e2' },
+  { bg: 'rgba(155,107,245,0.08)', border: 'rgba(155,107,245,0.2)', accent: '#661cf0' },
+  { bg: 'rgba(24,201,138,0.08)',  border: 'rgba(24,201,138,0.2)',  accent: '#0c6747' },
+  { bg: 'rgba(245,166,35,0.08)',  border: 'rgba(245,166,35,0.2)',  accent: '#7e5106' },
+  { bg: 'rgba(240,82,138,0.08)',  border: 'rgba(240,82,138,0.2)',  accent: '#ac0f47' },
+  { bg: 'rgba(255,120,60,0.08)',  border: 'rgba(255,120,60,0.2)',  accent: '#a23200' },
 ]
 
 // Deteksi adegan tetap berjalan walau tab ditinggal; token mencegah hasil
@@ -158,7 +159,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile }) {
       }
       const data = normalizeAnalysis(parsed, picked, { aiParams: state.toggleAiParams, resolution: resolutionLabel() })
       setAnalysis(data)
-      showToast(data.missing ? `Selesai — ${data.missing} bagian kosong, cek hasilnya` : `Analisis ${picked.length} adegan selesai! ✓`, !!data.missing)
+      showToast(data.missing ? `Selesai, tapi ${data.missing} bagian kosong. Cek hasilnya` : `Analisis ${picked.length} adegan selesai! ✓`, !!data.missing)
     } catch (e) { showToast('Error: ' + e.message, true) }
     set({ isAnalyzing: false })
   }
@@ -266,9 +267,9 @@ Transition : how it cuts to the next clip`
   const leftPanel = (
     <>
       <GlassCard color={CC[0]} label="Video Input">
-        <div onClick={() => !state.videoUrl && fileRef.current?.click()}
+        <div {...(state.videoUrl ? {} : { ...pressable(() => fileRef.current?.click()), 'aria-label': 'Pilih file video' })}
           onDragOver={e => e.preventDefault()} onDrop={handleDrop}
-          style={{ borderRadius:10, overflow:'hidden', cursor:state.videoUrl?'default':'pointer', border:`1.5px dashed ${state.videoUrl?'#18c98a':'rgba(100,120,220,0.25)'}`, background:'rgba(255,255,255,0.5)', minHeight:state.videoUrl?'auto':90, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          style={{ borderRadius:10, overflow:'hidden', cursor:state.videoUrl?'default':'pointer', border:`1.5px dashed ${state.videoUrl?'#0c6747':'rgba(100,120,220,0.25)'}`, background:'rgba(255,255,255,0.5)', minHeight:state.videoUrl?'auto':90, display:'flex', alignItems:'center', justifyContent:'center' }}>
           {state.videoUrl
             ? <video ref={videoRef} src={state.videoUrl} controls style={{ width:'100%', display:'block', maxHeight:360, background:'#000' }}>
                 {vttUrl && <track key={vttUrl} kind="subtitles" src={vttUrl} srcLang={state.transcriptLang || 'id'} label="Transkrip" default />}
@@ -284,17 +285,17 @@ Transition : how it cuts to the next clip`
         {state.videoMeta && (
           <div style={{ marginTop:8, display:'flex', flexDirection:'column', gap:5 }}>
             <div style={{ display:'flex', gap:4, flexWrap:'wrap', alignItems:'center' }}>
-              <Chip label="Fmt"  value={state.videoMeta.format}            color="#18c98a" />
-              <Chip label="Size" value={state.videoMeta.size}              color="#f5a623" />
-              <Chip label="Dur"  value={state.videoMeta.durationFormatted} color="#4f7ef7" />
+              <Chip label="Fmt"  value={state.videoMeta.format}            color="#0c6747" />
+              <Chip label="Size" value={state.videoMeta.size}              color="#7e5106" />
+              <Chip label="Dur"  value={state.videoMeta.durationFormatted} color="#0a47e2" />
               <button onClick={clearVideo}
                 style={{ marginLeft:'auto', fontSize:10, background:'rgba(232,48,74,0.08)', border:'1px solid rgba(232,48,74,0.25)', color:'var(--danger)', borderRadius:6, padding:'3px 8px', cursor:'pointer' }}>✕</button>
             </div>
             {state.videoMeta.width && (
               <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-                <Chip label="Res"   value={`${state.videoMeta.width}×${state.videoMeta.height}`} color="#9b6bf5" />
-                <Chip label="Ratio" value={state.videoMeta.aspectRatio} color="#f0528a" />
-                <Chip value={state.videoMeta.orientation} color="#ff783c" />
+                <Chip label="Res"   value={`${state.videoMeta.width}×${state.videoMeta.height}`} color="#661cf0" />
+                <Chip label="Ratio" value={state.videoMeta.aspectRatio} color="#ac0f47" />
+                <Chip value={state.videoMeta.orientation} color="#a23200" />
               </div>
             )}
           </div>
@@ -333,16 +334,16 @@ Transition : how it cuts to the next clip`
             <button key={m.id} onClick={() => set({ generateMode:m.id })} style={{
               padding:'7px 10px', fontSize:11, fontWeight:500, textAlign:'left',
               background:(state.generateMode||'precise')===m.id ? (m.danger?'rgba(232,48,74,0.12)':'rgba(155,107,245,0.12)') : 'rgba(255,255,255,0.45)',
-              border:`1.5px solid ${(state.generateMode||'precise')===m.id ? (m.danger?'#e8304a':'#9b6bf5') : 'rgba(100,120,220,0.15)'}`,
-              color:(state.generateMode||'precise')===m.id ? (m.danger?'#e8304a':'#9b6bf5') : 'var(--text2)',
+              border:`1.5px solid ${(state.generateMode||'precise')===m.id ? (m.danger?'#ae1329':'#661cf0') : 'rgba(100,120,220,0.15)'}`,
+              color:(state.generateMode||'precise')===m.id ? (m.danger?'#ae1329':'#661cf0') : 'var(--text2)',
               borderRadius:9, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center',
             }}>
               <span>{m.label}</span>
-              <span style={{ fontSize:9, color:'var(--text3)', fontWeight:400 }}>{m.desc}</span>
+              <span style={{ fontSize: 11, color:'var(--text3)', fontWeight:400 }}>{m.desc}</span>
             </button>
           ))}
         </div>
-        {isVulgar && <div style={{ marginTop:6, padding:'5px 8px', background:'rgba(232,48,74,0.08)', border:'1px solid rgba(232,48,74,0.2)', borderRadius:6, fontSize:10, color:'#e8304a' }}>🔞 Mode aktif — output tidak disensor</div>}
+        {isVulgar && <div style={{ marginTop:6, padding:'5px 8px', background:'rgba(232,48,74,0.08)', border:'1px solid rgba(232,48,74,0.2)', borderRadius:6, fontSize:10, color:'#ae1329' }}>🔞 Mode aktif: output tidak disensor</div>}
       </GlassCard>
 
       <GlassCard color={CC[4]} label="Detail Level">
@@ -351,8 +352,8 @@ Transition : how it cuts to the next clip`
             <button key={d} onClick={() => set({ detailLevel:d })} style={{
               flex:1, padding:'5px 0', fontSize:11, fontWeight:600,
               background:(state.detailLevel||'Ultra')===d ? 'rgba(240,82,138,0.12)' : 'rgba(255,255,255,0.45)',
-              border:`1.5px solid ${(state.detailLevel||'Ultra')===d ? '#f0528a' : 'rgba(100,120,220,0.15)'}`,
-              color:(state.detailLevel||'Ultra')===d ? '#f0528a' : 'var(--text2)',
+              border:`1.5px solid ${(state.detailLevel||'Ultra')===d ? '#ac0f47' : 'rgba(100,120,220,0.15)'}`,
+              color:(state.detailLevel||'Ultra')===d ? '#ac0f47' : 'var(--text2)',
               borderRadius:8, cursor:'pointer',
             }}>{d}</button>
           ))}
@@ -369,8 +370,8 @@ Transition : how it cuts to the next clip`
             <button key={key} onClick={() => set({ [key]:!state[key] })} style={{
               padding:'3px 9px', fontSize:10, fontWeight:500,
               background:state[key]?'rgba(24,201,138,0.12)':'rgba(255,255,255,0.45)',
-              border:`1px solid ${state[key]?'#18c98a':'rgba(100,120,220,0.15)'}`,
-              color:state[key]?'#18c98a':'var(--text3)', borderRadius:20, cursor:'pointer',
+              border:`1px solid ${state[key]?'#0c6747':'rgba(100,120,220,0.15)'}`,
+              color:state[key]?'#0c6747':'var(--text3)', borderRadius:20, cursor:'pointer',
             }}>{state[key]?'✓ ':''}{label}</button>
           ))}
           <button onClick={() => {
@@ -379,8 +380,8 @@ Transition : how it cuts to the next clip`
           }} title="Tambahkan tanda [perkiraan] / [saran AI] di teks salinan" style={{
             padding:'3px 9px', fontSize:10, fontWeight:500,
             background:state.markSources?'rgba(245,166,35,0.12)':'rgba(255,255,255,0.45)',
-            border:`1px solid ${state.markSources?'#f5a623':'rgba(100,120,220,0.15)'}`,
-            color:state.markSources?'#f5a623':'var(--text3)', borderRadius:20, cursor:'pointer',
+            border:`1px solid ${state.markSources?'#7e5106':'rgba(100,120,220,0.15)'}`,
+            color:state.markSources?'#7e5106':'var(--text3)', borderRadius:20, cursor:'pointer',
           }}>{state.markSources?'✓ ':''}Tandai perkiraan</button>
         </div>
         <div style={{ display:'flex', gap:5 }}>
@@ -388,8 +389,8 @@ Transition : how it cuts to the next clip`
             <button key={id} onClick={() => set({ lang:id })} style={{
               flex:1, padding:'4px 0', fontSize:10, fontWeight:600,
               background:(state.lang||'en')===id ? 'rgba(245,166,35,0.15)' : 'rgba(255,255,255,0.45)',
-              border:`1px solid ${(state.lang||'en')===id ? '#f5a623' : 'rgba(100,120,220,0.15)'}`,
-              color:(state.lang||'en')===id ? '#f5a623' : 'var(--text3)', borderRadius:7, cursor:'pointer',
+              border:`1px solid ${(state.lang||'en')===id ? '#7e5106' : 'rgba(100,120,220,0.15)'}`,
+              color:(state.lang||'en')===id ? '#7e5106' : 'var(--text3)', borderRadius:7, cursor:'pointer',
             }}>{label}</button>
           ))}
         </div>
@@ -400,7 +401,7 @@ Transition : how it cuts to the next clip`
   const analyzeBtn = (
     <button onClick={analyzeVideo} disabled={state.isAnalyzing} style={{
       width:'100%', padding:12, fontSize:13, fontWeight:700,
-      background:state.isAnalyzing ? 'rgba(100,120,220,0.15)' : isVulgar ? 'linear-gradient(135deg,#e8304a,#9b6bf5)' : 'linear-gradient(135deg,#4f7ef7,#9b6bf5)',
+      background:state.isAnalyzing ? 'rgba(100,120,220,0.15)' : isVulgar ? 'linear-gradient(135deg,#ae1329,#661cf0)' : 'linear-gradient(135deg,#0a47e2,#661cf0)',
       border:'none', color:state.isAnalyzing ? 'var(--text3)' : 'white',
       borderRadius:11, cursor:state.isAnalyzing ? 'not-allowed' : 'pointer',
       boxShadow:state.isAnalyzing ? 'none' : isVulgar ? '0 6px 24px rgba(232,48,74,0.35)' : '0 6px 24px rgba(79,126,247,0.35)',
@@ -435,7 +436,7 @@ Transition : how it cuts to the next clip`
                 {!isMobile && state.videoMeta?.width && ` · ${state.videoMeta.width}×${state.videoMeta.height}`}
               </span>
               <div style={{ marginLeft:'auto', display:'flex', gap:6 }}>
-                <ActionBtn color="#18c98a" copied={copied.all} onClick={() => copy(state.analysisText||'','all')}>📋 Copy</ActionBtn>
+                <ActionBtn color="#0c6747" copied={copied.all} onClick={() => copy(state.analysisText||'','all')}>📋 Copy</ActionBtn>
                 <ActionBtn onClick={() => exportTxt(state.analysisText||'','prompt.txt')}>💾</ActionBtn>
                 <ActionBtn onClick={analyzeVideo}>↺</ActionBtn>
               </div>
@@ -450,12 +451,12 @@ Transition : how it cuts to the next clip`
                 onSeek={seekVideo}
               />
             )}
-            <GlassCard color={CC[0]} label={`Teks prompt siap salin — ${curPlatform?.label||''}`}>
+            <GlassCard color={CC[0]} label={`Teks prompt siap salin: ${curPlatform?.label||''}`}>
               <OutputBox content={state.analysisText} loading={state.isAnalyzing} empty="Upload video, pilih adegan (opsional), lalu klik Analyze. Hasilnya bisa dikoreksi per bagian di atas." minH={state.analysisData ? 160 : (isMobile ? 200 : 300)} style={{ maxHeight: state.analysisData ? 360 : 'none' }} />
               {state.analysisText && (
                 <div style={{ marginTop:6, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <span style={{ fontSize:10, color:'var(--text3)', fontFamily:'var(--mono)' }}>{state.analysisText.length} chars</span>
-                  <ActionBtn color="#18c98a" copied={copied.toswap} onClick={() => { copy(state.analysisText,'toswap'); showToast('Buka tab Video Variations atau Editor!') }} small>📋 Salin</ActionBtn>
+                  <ActionBtn color="#0c6747" copied={copied.toswap} onClick={() => { copy(state.analysisText,'toswap'); showToast('Buka tab Video Variations atau Editor!') }} small>📋 Salin</ActionBtn>
                 </div>
               )}
             </GlassCard>
@@ -472,10 +473,10 @@ Transition : how it cuts to the next clip`
               ? <div style={{ color:'var(--text3)', fontSize:12, fontStyle:'italic', padding:'24px 0', textAlign:'center' }}>Jalankan analisis dulu.</div>
               : <>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
-                    <span style={{ fontSize:11, fontWeight:600, color:'var(--text2)' }}>💡 Insight — {curPlatform?.label}</span>
+                    <span style={{ fontSize:11, fontWeight:600, color:'var(--text2)' }}>💡 Insight untuk {curPlatform?.label}</span>
                     <button onClick={generateInsight} disabled={isGenInsight} style={{
                       padding:'8px 16px', fontSize:12, fontWeight:700,
-                      background:isGenInsight ? 'rgba(100,120,220,0.15)' : 'linear-gradient(135deg,#18c98a,#4f7ef7)',
+                      background:isGenInsight ? 'rgba(100,120,220,0.15)' : 'linear-gradient(135deg,#0c6747,#0a47e2)',
                       border:'none', color:isGenInsight ? 'var(--text3)' : 'white',
                       borderRadius:9, cursor:isGenInsight ? 'not-allowed' : 'pointer',
                       display:'flex', alignItems:'center', gap:6,
@@ -491,7 +492,7 @@ Transition : how it cuts to the next clip`
                           • 5 judul dengan gaya berbeda<br />
                           • Caption short / medium / long<br />
                           • Hashtag strategi<br />
-                          • Strategi posting + viral potential<br />
+                          • Saran jam posting + perkiraan potensi viral<br />
                           • Soundtrack recommendation<br />
                           • Adaptasi lintas platform
                         </div>
@@ -507,11 +508,11 @@ Transition : how it cuts to the next clip`
             <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
               <GlassCard color={CC[0]} label="Custom Title" style={{ flex:2, minWidth:180 }}>
                 <input value={selectedTitle} placeholder="Judul video baru..." onChange={e => setSelectedTitle(e.target.value)}
-                  style={{ width:'100%', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(100,120,220,0.2)', color:'var(--text)', fontSize:12, padding:'7px 10px', borderRadius:8, outline:'none' }} />
+                  style={{ width:'100%', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(100,120,220,0.2)', color:'var(--text)', fontSize:12, padding:'7px 10px', borderRadius:8, }} />
               </GlassCard>
               <GlassCard color={CC[3]} label="Type" style={{ flex:1, minWidth:110 }}>
                 <div style={{ position:'relative' }}>
-                  <select value={storyType} onChange={e => setStoryType(e.target.value)} style={{ width:'100%', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(100,120,220,0.2)', color:'var(--text)', fontSize:12, padding:'7px 22px 7px 9px', borderRadius:8, appearance:'none', outline:'none' }}>
+                  <select value={storyType} onChange={e => setStoryType(e.target.value)} style={{ width:'100%', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(100,120,220,0.2)', color:'var(--text)', fontSize:12, padding:'7px 22px 7px 9px', borderRadius:8, appearance:'none', }}>
                     {[['viral','Viral'],['cinematic','Cinematic'],['documentary','Docu'],['emotional','Emotional']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                   <span style={{ position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', color:'var(--text3)', pointerEvents:'none', fontSize:10 }}>▼</span>
@@ -520,14 +521,14 @@ Transition : how it cuts to the next clip`
               <GlassCard color={CC[2]} label="Clips">
                 <div style={{ display:'flex', gap:4 }}>
                   {[2,3,4,5].map(n => (
-                    <button key={n} onClick={() => setClipCount(n)} style={{ width:32, height:32, background:clipCount===n ? 'linear-gradient(135deg,#4f7ef7,#9b6bf5)' : 'rgba(255,255,255,0.6)', border:'1px solid rgba(100,120,220,0.2)', color:clipCount===n ? 'white' : 'var(--text2)', borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:700 }}>{n}</button>
+                    <button key={n} onClick={() => setClipCount(n)} style={{ width:32, height:32, background:clipCount===n ? 'linear-gradient(135deg,#0a47e2,#661cf0)' : 'rgba(255,255,255,0.6)', border:'1px solid rgba(100,120,220,0.2)', color:clipCount===n ? 'white' : 'var(--text2)', borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:700 }}>{n}</button>
                   ))}
                 </div>
               </GlassCard>
             </div>
             <button onClick={generateNewStory} disabled={isGenStory} style={{
               padding:11, fontSize:12, fontWeight:700,
-              background:isGenStory ? 'rgba(100,120,220,0.15)' : 'linear-gradient(135deg,#9b6bf5,#f0528a)',
+              background:isGenStory ? 'rgba(100,120,220,0.15)' : 'linear-gradient(135deg,#661cf0,#ac0f47)',
               border:'none', color:isGenStory ? 'var(--text3)' : 'white', borderRadius:11,
               cursor:isGenStory ? 'not-allowed' : 'pointer',
             }}>
@@ -537,7 +538,7 @@ Transition : how it cuts to the next clip`
               <GlassCard color={CC[1]} label="Story Output">
                 <OutputBox content={storyOutput} minH={180} />
                 <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                  <ActionBtn color="#9b6bf5" copied={copied.story} onClick={() => copy(storyOutput,'story')}>📋 Copy</ActionBtn>
+                  <ActionBtn color="#661cf0" copied={copied.story} onClick={() => copy(storyOutput,'story')}>📋 Copy</ActionBtn>
                   <ActionBtn onClick={() => exportTxt(storyOutput,'story.txt')}>💾 Export</ActionBtn>
                 </div>
               </GlassCard>
@@ -565,8 +566,12 @@ Transition : how it cuts to the next clip`
 function InsightPanel({ data, copy, copied, exportTxt }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div role="note" style={{ fontSize: 11, lineHeight: 1.6, color: '#7e5106', background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.35)', borderRadius: 8, padding: '8px 10px' }}>
+        Semua isi Insight adalah saran AI dari isi video, bukan data tren atau statistik platform.
+        Jam posting, potensi viral, dan sound "trending" belum dicek ke TikTok, Instagram, atau YouTube.
+      </div>
       <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-        <ActionBtn color="#18c98a" copied={copied.insight} onClick={() => copy(JSON.stringify(data, null, 2), 'insight')}>📋 Copy All</ActionBtn>
+        <ActionBtn color="#0c6747" copied={copied.insight} onClick={() => copy(JSON.stringify(data, null, 2), 'insight')}>📋 Copy All</ActionBtn>
         <ActionBtn onClick={() => exportTxt(JSON.stringify(data, null, 2), 'insight.json')}>💾 Export</ActionBtn>
       </div>
 
@@ -578,21 +583,21 @@ function InsightPanel({ data, copy, copied, exportTxt }) {
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '7px 10px', background: 'rgba(255,255,255,0.5)', borderRadius: 8 }}>
                 <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 700, minWidth: 18, flexShrink: 0 }}>{i + 1}</span>
                 <span style={{ fontSize: 12, color: 'var(--text)', flex: 1, lineHeight: 1.5 }}>{t}</span>
-                <ActionBtn small copied={copied['vt' + i]} onClick={() => copy(t, 'vt' + i)} color="#4f7ef7">Copy</ActionBtn>
+                <ActionBtn small copied={copied['vt' + i]} onClick={() => copy(t, 'vt' + i)} color="#0a47e2">Copy</ActionBtn>
               </div>
             ))}
             <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
-              <ActionBtn copied={copied.vtAll} onClick={() => copy(data.viralTitles.map((t,i) => `${i+1}. ${t}`).join('\n'), 'vtAll')} color="#4f7ef7">📋 Copy All Titles</ActionBtn>
+              <ActionBtn copied={copied.vtAll} onClick={() => copy(data.viralTitles.map((t,i) => `${i+1}. ${t}`).join('\n'), 'vtAll')} color="#0a47e2">📋 Copy All Titles</ActionBtn>
             </div>
           </div>
         </GlassCard>
       )}
       {data.postingStrategy && (
-        <GlassCard color={CC[2]} label="📈 Posting Strategy">
+        <GlassCard color={CC[2]} label="📈 Posting Strategy (perkiraan AI)">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {[['Best Time',data.postingStrategy.bestTime],['Frequency',data.postingStrategy.frequency],['Content Pillar',data.postingStrategy.contentPillar],['Viral Potential',data.postingStrategy.viralPotential]].filter(([,v])=>v).map(([k,v]) => (
+            {[['Saran jam posting',data.postingStrategy.bestTime],['Frequency',data.postingStrategy.frequency],['Content Pillar',data.postingStrategy.contentPillar],['Perkiraan potensi viral',data.postingStrategy.viralPotential]].filter(([,v])=>v).map(([k,v]) => (
               <div key={k} style={{ background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '8px 10px' }}>
-                <div style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 700, letterSpacing: '0.07em', marginBottom: 3 }}>{k.toUpperCase()}</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, letterSpacing: '0.07em', marginBottom: 3 }}>{k.toUpperCase()}</div>
                 <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 500 }}>{String(v)}</div>
               </div>
             ))}
@@ -605,9 +610,9 @@ function InsightPanel({ data, copy, copied, exportTxt }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {data.titles.map((t, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '7px 10px', background: 'rgba(255,255,255,0.5)', borderRadius: 8 }}>
-                <span style={{ fontSize: 9, color: 'var(--accent)', background: 'rgba(79,126,247,0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700, whiteSpace: 'nowrap', marginTop: 1 }}>{t.style}</span>
+                <span style={{ fontSize: 11, color: 'var(--accent)', background: 'rgba(79,126,247,0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700, whiteSpace: 'nowrap', marginTop: 1 }}>{t.style}</span>
                 <span style={{ fontSize: 12, color: 'var(--text)', flex: 1 }}>{t.text}</span>
-                <ActionBtn small copied={copied['title'+i]} onClick={() => copy(t.text, 'title'+i)} color="#4f7ef7">Copy</ActionBtn>
+                <ActionBtn small copied={copied['title'+i]} onClick={() => copy(t.text, 'title'+i)} color="#0a47e2">Copy</ActionBtn>
               </div>
             ))}
           </div>
@@ -618,8 +623,8 @@ function InsightPanel({ data, copy, copied, exportTxt }) {
           {[['short','Short'],['medium','Medium'],['long','Long']].map(([key,label]) => data.descriptions[key] && (
             <div key={key} style={{ marginBottom: 8, background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '8px 10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em' }}>{label.toUpperCase()}</span>
-                <ActionBtn small copied={copied['desc'+key]} onClick={() => copy(data.descriptions[key], 'desc'+key)} color="#9b6bf5">Copy</ActionBtn>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.06em' }}>{label.toUpperCase()}</span>
+                <ActionBtn small copied={copied['desc'+key]} onClick={() => copy(data.descriptions[key], 'desc'+key)} color="#661cf0">Copy</ActionBtn>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{data.descriptions[key]}</div>
             </div>
@@ -628,12 +633,12 @@ function InsightPanel({ data, copy, copied, exportTxt }) {
       )}
       {data.hashtags && (
         <GlassCard color={CC[3]} label="# Hashtags">
-          {[['niche','#f5a623','Niche'],['broad','#18c98a','Broad'],['trending','#f0528a','Trending'],['branded','#4f7ef7','Branded']].map(([key,color,label]) => data.hashtags[key]?.length > 0 && (
+          {[['niche','#7e5106','Niche'],['broad','#0c6747','Broad'],['trending','#ac0f47','Trending'],['branded','#0a47e2','Branded']].map(([key,color,label]) => data.hashtags[key]?.length > 0 && (
             <div key={key} style={{ marginBottom: 8 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.07em', marginBottom: 5 }}>{label.toUpperCase()}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.07em', marginBottom: 5 }}>{label.toUpperCase()}</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                 {data.hashtags[key].map((tag, j) => (
-                  <span key={j} style={{ fontSize: 11, color, background: `${color}18`, border: `1px solid ${color}40`, borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }} onClick={() => copy(tag, 'htag'+key+j)}>{tag}</span>
+                  <button type="button" key={j} title="Salin hashtag" style={{ fontSize: 11, color, background: `${color}18`, border: `1px solid ${color}40`, borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }} onClick={() => copy(tag, 'htag'+key+j)}>{tag}</button>
                 ))}
                 <ActionBtn small copied={copied['htags'+key]} onClick={() => copy(data.hashtags[key].join(' '), 'htags'+key)} color={color}>Copy All</ActionBtn>
               </div>
@@ -646,25 +651,25 @@ function InsightPanel({ data, copy, copied, exportTxt }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* Key specs row */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {[['Genre', data.soundtrack.genre, '#9b6bf5'], ['Mood', data.soundtrack.mood, '#f0528a'], ['Tempo', data.soundtrack.tempo, '#f5a623']].filter(([,v])=>v).map(([k,v,c]) => (
+              {[['Genre', data.soundtrack.genre, '#661cf0'], ['Mood', data.soundtrack.mood, '#ac0f47'], ['Tempo', data.soundtrack.tempo, '#7e5106']].filter(([,v])=>v).map(([k,v,c]) => (
                 <div key={k} style={{ background: `${c}12`, border: `1px solid ${c}35`, borderRadius: 8, padding: '6px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.07em' }}>{k.toUpperCase()}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.07em' }}>{k.toUpperCase()}</span>
                   <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600 }}>{String(v)}</span>
                 </div>
               ))}
             </div>
             {data.soundtrack.instruments && (
               <div style={{ padding: '7px 10px', background: 'rgba(255,255,255,0.5)', borderRadius: 8 }}>
-                <div style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 700, marginBottom: 3 }}>INSTRUMENTS / ELEMENTS</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, marginBottom: 3 }}>INSTRUMENTS / ELEMENTS</div>
                 <div style={{ fontSize: 12, color: 'var(--text)' }}>{data.soundtrack.instruments}</div>
               </div>
             )}
             {data.soundtrack.references?.length > 0 && (
               <div style={{ padding: '7px 10px', background: 'rgba(255,255,255,0.5)', borderRadius: 8 }}>
-                <div style={{ fontSize: 9, color: 'var(--text3)', fontWeight: 700, marginBottom: 6 }}>ARTIST / SONG REFERENCES</div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, marginBottom: 6 }}>REFERENSI ARTIS / LAGU (SARAN AI, CEK LISENSI)</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                   {data.soundtrack.references.map((r, i) => (
-                    <span key={i} style={{ fontSize: 11, color: '#9b6bf5', background: 'rgba(155,107,245,0.1)', border: '1px solid rgba(155,107,245,0.25)', borderRadius: 6, padding: '3px 9px' }}>{r}</span>
+                    <span key={i} style={{ fontSize: 11, color: '#661cf0', background: 'rgba(155,107,245,0.1)', border: '1px solid rgba(155,107,245,0.25)', borderRadius: 6, padding: '3px 9px' }}>{r}</span>
                   ))}
                 </div>
               </div>
@@ -672,19 +677,19 @@ function InsightPanel({ data, copy, copied, exportTxt }) {
             {data.soundtrack.tiktokSound && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: 'rgba(240,82,138,0.07)', border: '1px solid rgba(240,82,138,0.2)', borderRadius: 8 }}>
                 <div>
-                  <div style={{ fontSize: 9, color: '#f0528a', fontWeight: 700, marginBottom: 2 }}>TIKTOK TRENDING SOUND</div>
+                  <div style={{ fontSize: 11, color: '#ac0f47', fontWeight: 700, marginBottom: 2 }}>SARAN SOUND TIKTOK (BELUM DICEK TREN)</div>
                   <div style={{ fontSize: 12, color: 'var(--text)' }}>{data.soundtrack.tiktokSound}</div>
                 </div>
-                <ActionBtn small copied={copied.tiktokSound} onClick={() => copy(data.soundtrack.tiktokSound, 'tiktokSound')} color="#f0528a">Copy</ActionBtn>
+                <ActionBtn small copied={copied.tiktokSound} onClick={() => copy(data.soundtrack.tiktokSound, 'tiktokSound')} color="#ac0f47">Copy</ActionBtn>
               </div>
             )}
             {data.soundtrack.royaltyFree && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', background: 'rgba(24,201,138,0.07)', border: '1px solid rgba(24,201,138,0.2)', borderRadius: 8 }}>
                 <div>
-                  <div style={{ fontSize: 9, color: '#18c98a', fontWeight: 700, marginBottom: 2 }}>ROYALTY-FREE SEARCH KEYWORD</div>
+                  <div style={{ fontSize: 11, color: '#0c6747', fontWeight: 700, marginBottom: 2 }}>ROYALTY-FREE SEARCH KEYWORD</div>
                   <div style={{ fontSize: 12, color: 'var(--text)' }}>{data.soundtrack.royaltyFree}</div>
                 </div>
-                <ActionBtn small copied={copied.rfSound} onClick={() => copy(data.soundtrack.royaltyFree, 'rfSound')} color="#18c98a">Copy</ActionBtn>
+                <ActionBtn small copied={copied.rfSound} onClick={() => copy(data.soundtrack.royaltyFree, 'rfSound')} color="#0c6747">Copy</ActionBtn>
               </div>
             )}
           </div>
@@ -692,7 +697,7 @@ function InsightPanel({ data, copy, copied, exportTxt }) {
       )}
       {data.crossPlatform && (
         <GlassCard color={CC[5]} label="🌐 Cross-Platform">
-          {[['tiktok','TikTok','#f0528a'],['instagram','Instagram','#9b6bf5'],['youtube','YouTube','#e8304a'],['twitter','X/Twitter','#4f7ef7']].map(([key,label,color]) => data.crossPlatform[key] && (
+          {[['tiktok','TikTok','#ac0f47'],['instagram','Instagram','#661cf0'],['youtube','YouTube','#ae1329'],['twitter','X/Twitter','#0a47e2']].map(([key,label,color]) => data.crossPlatform[key] && (
             <div key={key} style={{ marginBottom: 8, background: 'rgba(255,255,255,0.5)', borderRadius: 8, padding: '8px 10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ fontSize: 10, fontWeight: 700, color }}>{label}</span>
@@ -721,7 +726,7 @@ function GlassCard({ color, label, children, style = {} }) {
 function OutputBox({ content, loading, empty, mono, minH = 80, style = {} }) {
   return (
     <div style={{ background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(100,120,220,0.12)', borderRadius: 9, padding: '10px 12px', overflowY: 'auto', fontSize: mono ? 11 : 12, lineHeight: 1.75, fontFamily: mono ? 'var(--mono)' : 'var(--sans)', color: content ? 'var(--text)' : 'var(--text3)', fontStyle: !content && !loading ? 'italic' : 'normal', whiteSpace: 'pre-wrap', wordBreak: 'break-word', minHeight: minH, animation: loading ? 'pulse 1.2s infinite' : 'none', ...style }}>
-      {loading ? '⟳ Analyzing...' : content || empty || '—'}
+      {loading ? '⟳ Analyzing...' : content || empty || ''}
       <style>{`@keyframes pulse{0%,100%{opacity:.65}50%{opacity:1}}`}</style>
     </div>
   )
@@ -729,7 +734,7 @@ function OutputBox({ content, loading, empty, mono, minH = 80, style = {} }) {
 
 function ActionBtn({ children, onClick, color, copied, small }) {
   return (
-    <button onClick={onClick} style={{ padding: small ? '3px 9px' : '5px 12px', fontSize: 10, fontWeight: 600, background: copied ? `${color || '#18c98a'}18` : 'rgba(255,255,255,0.7)', border: `1px solid ${copied ? (color || '#18c98a') : 'rgba(100,120,220,0.2)'}`, color: copied ? (color || '#18c98a') : 'var(--text2)', borderRadius: 7, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(80,100,200,0.08)' }}>
+    <button onClick={onClick} style={{ padding: small ? '3px 9px' : '5px 12px', fontSize: 10, fontWeight: 600, background: copied ? `${color || '#0c6747'}18` : 'rgba(255,255,255,0.7)', border: `1px solid ${copied ? (color || '#0c6747') : 'rgba(100,120,220,0.2)'}`, color: copied ? (color || '#0c6747') : 'var(--text2)', borderRadius: 7, cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(80,100,200,0.08)' }}>
       {copied ? '✓ Copied' : children}
     </button>
   )
@@ -738,7 +743,7 @@ function ActionBtn({ children, onClick, color, copied, small }) {
 function Chip({ label, value, color }) {
   return (
     <div style={{ background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(100,120,220,0.15)', borderRadius: 6, padding: '2px 8px', display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-      {label && <span style={{ fontSize: 9, color: 'var(--text3)' }}>{label}</span>}
+      {label && <span style={{ fontSize: 11, color: 'var(--text3)' }}>{label}</span>}
       <span style={{ fontSize: 10, color: color || 'var(--accent)', fontFamily: 'var(--mono)', fontWeight: 700 }}>{value}</span>
     </div>
   )
@@ -747,7 +752,7 @@ function Chip({ label, value, color }) {
 function SelField({ value, onChange, options }) {
   return (
     <div style={{ position: 'relative' }}>
-      <select value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(100,120,220,0.18)', color: 'var(--text)', fontSize: 11, padding: '6px 22px 6px 9px', borderRadius: 8, appearance: 'none', outline: 'none' }}>
+      <select value={value} onChange={e => onChange(e.target.value)} style={{ width: '100%', background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(100,120,220,0.18)', color: 'var(--text)', fontSize: 11, padding: '6px 22px 6px 9px', borderRadius: 8, appearance: 'none', }}>
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)', pointerEvents: 'none', fontSize: 10 }}>▼</span>

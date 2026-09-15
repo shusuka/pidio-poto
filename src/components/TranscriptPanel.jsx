@@ -75,16 +75,16 @@ export default function TranscriptPanel({ state, set, showToast, videoRef }) {
       <GlassCard color={CC[2]} label="Transkrip & Subtitle">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ flex: '1 1 200px' }}>
-            <PrimaryBtn onClick={generate} disabled={loading || !state.videoFile || isClaude} gradient="linear-gradient(135deg,#18c98a,#4f7ef7)">
+            <PrimaryBtn onClick={generate} disabled={loading || !state.videoFile || isClaude} gradient="linear-gradient(135deg,#0c6747,#0a47e2)">
               {loading ? <><Spin /> Mentranskripsi…</> : segments.length ? '↻ Buat ulang transkrip' : '🗣 Buat transkrip otomatis'}
             </PrimaryBtn>
           </div>
           <Btn onClick={addRow} disabled={!state.videoFile}>＋ Baris</Btn>
-          <Btn active={state.subtitleOnVideo} color="#18c98a" onClick={() => set({ subtitleOnVideo: !state.subtitleOnVideo })} disabled={!segments.length}>
+          <Btn active={state.subtitleOnVideo} color="#0c6747" onClick={() => set({ subtitleOnVideo: !state.subtitleOnVideo })} disabled={!segments.length}>
             {state.subtitleOnVideo ? '✓ ' : ''}Subtitle di video
           </Btn>
         </div>
-        {isClaude && <div style={{ marginTop: 7, fontSize: 10, color: '#f5a623' }}>Transkripsi otomatis butuh provider Gemini. Anda tetap bisa menulis transkrip manual.</div>}
+        {isClaude && <div style={{ marginTop: 7, fontSize: 10, color: '#7e5106' }}>Transkripsi otomatis butuh provider Gemini. Anda tetap bisa menulis transkrip manual.</div>}
         {segments.length > 0 && (
           <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontSize: 10, color: 'var(--text3)' }}>{segments.length} segmen{state.transcriptLang ? ` · ${state.transcriptLang}` : ''} · Ekspor:</span>

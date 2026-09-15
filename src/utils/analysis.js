@@ -16,10 +16,10 @@ export const GLOBAL_FIELDS = [
 ]
 
 export const SOURCES = {
-  observed:  { id: 'Terlihat',  en: 'Observed',      color: '#18c98a', hint: 'Terlihat/terdengar langsung di video' },
-  inferred:  { id: 'Perkiraan', en: 'Inferred',      color: '#f5a623', hint: 'Diperkirakan dari petunjuk visual' },
-  suggested: { id: 'Saran AI',  en: 'AI suggestion', color: '#9b6bf5', hint: 'Tidak ada di video — ide kreatif AI' },
-  edited:    { id: 'Diedit',    en: 'Edited',        color: '#4f7ef7', hint: 'Sudah diperiksa/diubah manual' },
+  observed:  { id: 'Terlihat',  en: 'Observed',      color: '#0c6747', hint: 'Terlihat/terdengar langsung di video' },
+  inferred:  { id: 'Perkiraan', en: 'Inferred',      color: '#7e5106', hint: 'Diperkirakan dari petunjuk visual' },
+  suggested: { id: 'Saran AI',  en: 'AI suggestion', color: '#661cf0', hint: 'Tidak ada di video — ide kreatif AI' },
+  edited:    { id: 'Diedit',    en: 'Edited',        color: '#0a47e2', hint: 'Sudah diperiksa/diubah manual' },
 }
 
 const SLOT_LEN = 2

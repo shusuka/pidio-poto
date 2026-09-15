@@ -8,7 +8,7 @@ function SourceBadge({ source, onVerify }) {
   const canVerify = source !== 'edited' && onVerify
   return (
     <Badge label={s.id} color={s.color} onClick={canVerify ? onVerify : undefined}
-      title={`${s.hint}${canVerify ? ' — klik untuk tandai sudah diperiksa' : ''}`} />
+      title={`${s.hint}${canVerify ? '. Klik untuk tandai sudah diperiksa' : ''}`} />
   )
 }
 
@@ -16,7 +16,7 @@ function FieldRow({ label, value, onChange, onVerify, mono }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.07em', fontFamily: mono ? 'var(--mono)' : undefined }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', letterSpacing: '0.07em', fontFamily: mono ? 'var(--mono)' : undefined }}>{label}</span>
         <SourceBadge source={value.source} onVerify={onVerify} />
       </div>
       <AutoText value={value.text} onChange={onChange} style={{ borderLeft: `3px solid ${(SOURCES[value.source] || SOURCES.inferred).color}` }} />
@@ -46,7 +46,7 @@ export default function AnalysisEditor({ data, thumbs, onChange, onRegenScene, b
         {Object.entries(SOURCES).map(([k, s]) => (
           <Badge key={k} label={`${s.id} · ${counts[k] || 0}`} color={s.color} title={s.hint} />
         ))}
-        {data.missing > 0 && <Badge label={`⚠ ${data.missing} kosong`} color="#e8304a" title="Bagian yang tidak diisi AI — isi manual atau ulangi adegannya" />}
+        {data.missing > 0 && <Badge label={`⚠ ${data.missing} kosong`} color="#ae1329" title="Bagian yang tidak diisi AI. Isi manual atau ulangi adegannya" />}
         <span style={{ fontSize: 10, color: 'var(--text3)', marginLeft: 'auto' }}>Klik label untuk menandai sudah diperiksa</span>
       </div>
 

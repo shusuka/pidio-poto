@@ -3,12 +3,12 @@ import { callAI, fileToBase64 } from '../utils/gemini'
 import MobileLayout from './MobileLayout'
 
 const CC = [
-  { bg:'rgba(79,126,247,0.08)',  border:'rgba(79,126,247,0.2)',  accent:'#4f7ef7' },
-  { bg:'rgba(155,107,245,0.08)', border:'rgba(155,107,245,0.2)', accent:'#9b6bf5' },
-  { bg:'rgba(24,201,138,0.08)',  border:'rgba(24,201,138,0.2)',  accent:'#18c98a' },
-  { bg:'rgba(245,166,35,0.08)',  border:'rgba(245,166,35,0.2)',  accent:'#f5a623' },
-  { bg:'rgba(240,82,138,0.08)',  border:'rgba(240,82,138,0.2)',  accent:'#f0528a' },
-  { bg:'rgba(255,120,60,0.08)',  border:'rgba(255,120,60,0.2)',  accent:'#ff783c' },
+  { bg:'rgba(79,126,247,0.08)',  border:'rgba(79,126,247,0.2)',  accent:'#0a47e2' },
+  { bg:'rgba(155,107,245,0.08)', border:'rgba(155,107,245,0.2)', accent:'#661cf0' },
+  { bg:'rgba(24,201,138,0.08)',  border:'rgba(24,201,138,0.2)',  accent:'#0c6747' },
+  { bg:'rgba(245,166,35,0.08)',  border:'rgba(245,166,35,0.2)',  accent:'#7e5106' },
+  { bg:'rgba(240,82,138,0.08)',  border:'rgba(240,82,138,0.2)',  accent:'#ac0f47' },
+  { bg:'rgba(255,120,60,0.08)',  border:'rgba(255,120,60,0.2)',  accent:'#a23200' },
 ]
 
 const PLATFORMS = [
@@ -154,7 +154,7 @@ STRICT RULES:
   const generateBtn = (
     <button onClick={generateVariations} disabled={loading} style={{
       width:'100%', padding:12, fontSize:13, fontWeight:700,
-      background: loading ? 'rgba(100,120,220,0.15)' : 'linear-gradient(135deg,#9b6bf5,#f0528a)',
+      background: loading ? 'rgba(100,120,220,0.15)' : 'linear-gradient(135deg,#661cf0,#ac0f47)',
       border:'none', color: loading ? 'var(--text3)' : 'white',
       borderRadius:11, cursor: loading ? 'not-allowed' : 'pointer',
       boxShadow: loading ? 'none' : '0 6px 24px rgba(155,107,245,0.35)',
@@ -173,8 +173,8 @@ STRICT RULES:
             <button key={p.id} onClick={() => setPlatform(p.id)} style={{
               padding:'5px 10px', fontSize:11, fontWeight:600,
               background: platform===p.id ? 'rgba(79,126,247,0.15)' : 'rgba(255,255,255,0.5)',
-              border:`1.5px solid ${platform===p.id ? '#4f7ef7' : 'rgba(100,120,220,0.15)'}`,
-              color: platform===p.id ? '#4f7ef7' : 'var(--text2)',
+              border:`1.5px solid ${platform===p.id ? '#0a47e2' : 'rgba(100,120,220,0.15)'}`,
+              color: platform===p.id ? '#0a47e2' : 'var(--text2)',
               borderRadius:8, cursor:'pointer',
             }}>{p.label}</button>
           ))}
@@ -189,12 +189,12 @@ STRICT RULES:
               width:'100%', padding:'7px 10px', fontSize:11, fontWeight:500, textAlign:'left',
               display:'flex', alignItems:'center', gap:8,
               background: theme===t.id ? 'rgba(155,107,245,0.12)' : 'rgba(255,255,255,0.45)',
-              border:`1.5px solid ${theme===t.id ? '#9b6bf5' : 'rgba(100,120,220,0.15)'}`,
-              color: theme===t.id ? '#9b6bf5' : 'var(--text2)',
+              border:`1.5px solid ${theme===t.id ? '#661cf0' : 'rgba(100,120,220,0.15)'}`,
+              color: theme===t.id ? '#661cf0' : 'var(--text2)',
               borderRadius:9, cursor:'pointer',
             }}>
               <span style={{ flex:1 }}>{t.label}</span>
-              <span style={{ fontSize:9, color:'var(--text3)', fontWeight:400 }}>{t.desc}</span>
+              <span style={{ fontSize: 11, color:'var(--text3)', fontWeight:400 }}>{t.desc}</span>
             </button>
           ))}
         </div>
@@ -204,7 +204,7 @@ STRICT RULES:
               value={customTheme}
               onChange={e => setCustomTheme(e.target.value)}
               placeholder="Contoh: underwater civilization, ancient mythology..."
-              style={{ width:'100%', padding:'7px 10px', fontSize:11, color:'var(--text)', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(155,107,245,0.3)', borderRadius:8, outline:'none', boxSizing:'border-box' }}
+              style={{ width:'100%', padding:'7px 10px', fontSize:11, color:'var(--text)', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(155,107,245,0.3)', borderRadius:8, boxSizing:'border-box' }}
             />
           </div>
         )}
@@ -218,7 +218,7 @@ STRICT RULES:
             {[1,2,3,4,5].map(n => (
               <button key={n} onClick={() => setVariations(n)} style={{
                 flex:1, padding:'6px 0', fontSize:12, fontWeight:700,
-                background: variations===n ? 'linear-gradient(135deg,#4f7ef7,#9b6bf5)' : 'rgba(255,255,255,0.6)',
+                background: variations===n ? 'linear-gradient(135deg,#0a47e2,#661cf0)' : 'rgba(255,255,255,0.6)',
                 border:'1px solid rgba(100,120,220,0.2)',
                 color: variations===n ? 'white' : 'var(--text2)',
                 borderRadius:8, cursor:'pointer',
@@ -231,8 +231,8 @@ STRICT RULES:
           width:'100%', padding:'7px 10px', fontSize:11, fontWeight:500, textAlign:'left',
           display:'flex', justifyContent:'space-between', alignItems:'center',
           background: includeAudio ? 'rgba(24,201,138,0.1)' : 'rgba(255,255,255,0.45)',
-          border:`1.5px solid ${includeAudio ? '#18c98a' : 'rgba(100,120,220,0.15)'}`,
-          color: includeAudio ? '#18c98a' : 'var(--text2)',
+          border:`1.5px solid ${includeAudio ? '#0c6747' : 'rgba(100,120,220,0.15)'}`,
+          color: includeAudio ? '#0c6747' : 'var(--text2)',
           borderRadius:9, cursor:'pointer',
         }}>
           <span>🎵 Include Audio / Soundtrack</span>
@@ -265,7 +265,7 @@ STRICT RULES:
             width:'100%', minHeight: isMobile ? 70 : 90, maxHeight:160, padding:'9px 11px', fontSize:12,
             fontFamily:'var(--sans)', lineHeight:1.65, color:'var(--text)',
             background:'rgba(255,255,255,0.7)', border:'1.5px solid rgba(100,120,220,0.2)',
-            borderRadius:9, outline:'none', resize:'vertical', boxSizing:'border-box',
+            borderRadius:9, resize:'vertical', boxSizing:'border-box',
           }}
         />
       </div>
@@ -294,7 +294,7 @@ STRICT RULES:
           <>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6 }}>
               <span style={{ fontSize:11, fontWeight:600, color:'var(--text2)' }}>
-                {results.length} variation{results.length > 1 ? 's' : ''} — {PLATFORMS.find(p=>p.id===platform)?.label} · {theme === 'custom' ? customTheme : THEMES.find(t=>t.id===theme)?.label}
+                {results.length} variation{results.length > 1 ? 's' : ''} · {PLATFORMS.find(p=>p.id===platform)?.label} · {theme === 'custom' ? customTheme : THEMES.find(t=>t.id===theme)?.label}
               </span>
               {results.length > 1 && <ActionBtn onClick={exportAll}>💾 Export All</ActionBtn>}
             </div>
@@ -341,7 +341,7 @@ function GlassCard({ color, label, children, style={} }) {
 
 function ActionBtn({ children, onClick, color, copied, small }) {
   return (
-    <button onClick={onClick} style={{ padding:small?'3px 9px':'5px 12px', fontSize:10, fontWeight:600, background:copied?`${color||'#18c98a'}18`:'rgba(255,255,255,0.7)', border:`1px solid ${copied?(color||'#18c98a'):'rgba(100,120,220,0.2)'}`, color:copied?(color||'#18c98a'):'var(--text2)', borderRadius:7, cursor:'pointer', whiteSpace:'nowrap' }}>
+    <button onClick={onClick} style={{ padding:small?'3px 9px':'5px 12px', fontSize:10, fontWeight:600, background:copied?`${color||'#0c6747'}18`:'rgba(255,255,255,0.7)', border:`1px solid ${copied?(color||'#0c6747'):'rgba(100,120,220,0.2)'}`, color:copied?(color||'#0c6747'):'var(--text2)', borderRadius:7, cursor:'pointer', whiteSpace:'nowrap' }}>
       {copied?'✓ Copied':children}
     </button>
   )
