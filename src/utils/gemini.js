@@ -1,4 +1,5 @@
 import { extractVideoFrames, resolveDuration } from './media'
+import { VIDEO_PLATFORMS } from '../config/platforms'
 
 // ─── Dispatcher: pilih provider berdasarkan state.provider ───────────────────
 // Pemanggil cukup memanggil callAI({ provider, ... }); param lain diteruskan.
@@ -22,12 +23,13 @@ const isGemini3 = (model = '') => /^gemini-3/.test(model)
 // supaya tidak ikut tercatat di log/riwayat jaringan.
 export async function callGemini({
   apiKey, model, prompt, mediaFile, mediaData, mimeType, clip,
-  temperature = 0.7, maxTokens = 32768, thinkingMode = false, json = false,
+  temperature = 0.7, maxTokens = 32768, thinkingMode = false, json = false, onStage,
 }) {
-  if (!apiKey) throw new Error('API key required')
+  if (!apiKey) throw new Error('API key belum diisi')
   const parts = []
   const mime = mimeType || mediaFile?.type
   if (mediaFile) {
+    onStage?.(mediaFile.size > INLINE_LIMIT ? 'upload' : 'send')
     const part = await geminiMediaPart(apiKey, mediaFile, mime)
     if (clip && mime?.startsWith('video/')) {
       part.videoMetadata = { startOffset: `${Math.max(0, clip.start).toFixed(2)}s`, endOffset: `${clip.end.toFixed(2)}s` }
@@ -49,6 +51,7 @@ export async function callGemini({
   }
   if (json) generationConfig.responseMimeType = 'application/json'
 
+  onStage?.('generate')
   const res = await fetch(`${GEMINI_BASE}/v1beta/models/${model}:generateContent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -134,13 +137,14 @@ async function uploadGeminiFile(apiKey, file, mime) {
 // menjadi rangkaian frame (gambar) bertanda waktu.
 const CLAUDE_MAX_TOKENS = 16000 // batas aman untuk request non-streaming
 
-export async function callClaude({ apiKey, model, prompt, mediaFile, mediaData, mimeType, clip, frameTimes, maxTokens = CLAUDE_MAX_TOKENS }) {
-  if (!apiKey) throw new Error('API key required')
+export async function callClaude({ apiKey, model, prompt, mediaFile, mediaData, mimeType, clip, frameTimes, maxTokens = CLAUDE_MAX_TOKENS, onStage }) {
+  if (!apiKey) throw new Error('API key belum diisi')
 
   const content = []
   let framesNote = ''
   const mime = mimeType || mediaFile?.type || ''
   if (mediaFile && mime.startsWith('video/')) {
+    onStage?.('frames')
     const times = frameTimes || (clip ? sampleClip(clip) : undefined)
     const frames = await extractVideoFrames(mediaFile, { times })
     if (!frames.length) throw new Error('Gagal mengambil frame dari video.')
@@ -155,6 +159,7 @@ export async function callClaude({ apiKey, model, prompt, mediaFile, mediaData, 
     content.push({ type: 'image', source: { type: 'base64', media_type: mime, data } })
   }
   content.push({ type: 'text', text: framesNote + prompt })
+  onStage?.('generate')
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -263,39 +268,8 @@ function getAspectRatio(w, h) {
   return closest
 }
 
-export const PLATFORM_CONFIGS = {
-  douyin: {
-    name: 'Douyin (抖音)', color: '#7e5106',
-    note: 'Douyin: punchy, vertical-first phrasing; strong visual hook in the first 2 seconds; fast trendy pacing.',
-    negative: '模糊，低质量，水印，静态，无聊，过曝',
-    platformParams: 'ratio:9:16, duration:5-10s, style:viral',
-  },
-  jimeng: {
-    name: 'Jimeng AI (即梦)', color: '#0c6747',
-    note: 'Jimeng: scene→subject→action→camera→atmosphere. Include motion_intensity: 低/中/高.',
-    negative: '模糊, 低质量, 水印, 噪点, 过曝, 变形',
-    platformParams: 'motion_intensity:中, style:cinematic',
-  },
-  kling: {
-    name: 'Kling AI', color: '#661cf0',
-    note: 'Kling: include motion_strength (0.0-1.0). Negative prompt is critical.',
-    negative: 'blurry, distorted faces, bad anatomy, low quality, watermark, text, static, flickering',
-    platformParams: 'motion_strength:0.5, duration:5s, cfg_scale:0.5',
-  },
-  runway: {
-    name: 'Runway Gen-3', color: '#ac0f47',
-    note: 'Runway format: [camera motion] [subject] [action] [environment] [style].',
-    negative: 'blurry, bad lighting, overexposed, underexposed, artifacts, watermark',
-    platformParams: 'camera_motion:push_in, style:cinematic',
-  },
-  gemini_ai: {
-    name: 'Google Veo (Gemini)', color: '#0a47e2',
-    note: 'Veo: detailed scene + motion_guidance_scale + aspect_ratio required.',
-    negative: 'low quality, blurry, artifacts, watermark, text overlay, unrealistic motion',
-    platformParams: 'aspect_ratio:16:9, motion_guidance_scale:0.7',
-  },
-}
-
+// Daftar platform pindah ke config/platforms.js; nama lama tetap diekspor.
+export const PLATFORM_CONFIGS = VIDEO_PLATFORMS
 
 export const FOCUS_INSTR = {
   motion:  'FOCUS: prioritise motion and camera — movement speed, direction, easing, camera path, cuts.',

@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 
-export function useMobile() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 640)
+export function useWidth() {
+  const [width, setWidth] = useState(() => window.innerWidth)
   useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth <= 640)
+    const fn = () => setWidth(window.innerWidth)
     window.addEventListener('resize', fn)
     return () => window.removeEventListener('resize', fn)
   }, [])
-  return isMobile
+  return width
+}
+
+export function useMobile() {
+  return useWidth() <= 640
 }

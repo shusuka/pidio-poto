@@ -1,26 +1,92 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
+/* ── Tema Studio (bawaan): meja kerja editor video ──
+   Latar abu hangat, teks arang, satu aksen merah-oranye seperti lampu REC.
+   Tanpa blur dan tanpa gradien supaya hasil prompt jadi pusat perhatian. */
+:root, :root[data-theme="studio"] {
+  --bg: #f2f0eb;
+  --app-bg: #f2f0eb;
+  --paper: #fffefb;
+  --surface: #fffefb;
+  --text: #1c1a17;
+  --text2: #48443d;
+  --text3: #5d584f;
+  --tint: #6b6457;
+  --accent: #b5400d;
+  --on-accent: #ffffff;
+  --c-blue: #b5400d;
+  --c-violet: #2f2b26;
+  --c-pink: #b5400d;
+  --c-orange: #b5400d;
+  --c-green: #2d6a3e;
+  --c-amber: #85570a;
+  --danger: #b3212b;
+  --accent3: #2d6a3e;
+  --border: #e2ddd3;
+  --border2: #d3cdc1;
+  --grad-primary: #b5400d;
+  --blur: none;
+  --shadow: none;
+  --header-bg: #fffefb;
+  --panel-bg: #ebe8e1;
+  --card-shadow: none;
+  --label-case: none;
+  --label-track: 0;
+  --label-size: 12px;
+  --radius: 8px;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --sans: 'Instrument Sans', system-ui, sans-serif;
+  /* Kartu: semua netral, aksen hanya untuk aksi utama */
+  --cc0-bg: #fffefb; --cc0-line: #e2ddd3; --cc0-ink: #48443d;
+  --cc1-bg: #fffefb; --cc1-line: #e2ddd3; --cc1-ink: #48443d;
+  --cc2-bg: #fffefb; --cc2-line: #e2ddd3; --cc2-ink: #48443d;
+  --cc3-bg: #fffefb; --cc3-line: #e2ddd3; --cc3-ink: #48443d;
+  --cc4-bg: #fffefb; --cc4-line: #e2ddd3; --cc4-ink: #48443d;
+  --cc5-bg: #fffefb; --cc5-line: #e2ddd3; --cc5-ink: #48443d;
+}
+
+/* ── Tema Klasik: tampilan lama (biru-lavender, kaca) ── */
+:root[data-theme="klasik"] {
   --bg: #f0f4ff;
+  --app-bg: linear-gradient(135deg, #e8eeff 0%, #f5eeff 50%, #eef5ff 100%);
+  --paper: #ffffff;
   --surface: rgba(255,255,255,0.75);
-  --surface2: rgba(255,255,255,0.55);
-  --surface3: rgba(255,255,255,0.35);
-  --accent: #0a47e2;
-  --accent2: #661cf0;
-  --accent3: #0c6747;
-  --accent4: #7e5106;
-  --accent5: #ac0f47;
   --text: #1a1f3a;
   --text2: #4a5280;
   --text3: #515a7f;
+  --tint: rgb(100,120,220);
+  --accent: #0a47e2;
+  --on-accent: #ffffff;
+  --c-blue: #0a47e2;
+  --c-violet: #661cf0;
+  --c-pink: #ac0f47;
+  --c-orange: #a23200;
+  --c-green: #0c6747;
+  --c-amber: #7e5106;
+  --danger: #ae1329;
+  --accent3: #0c6747;
   --border: rgba(80,100,200,0.12);
   --border2: rgba(80,100,200,0.22);
-  --danger: #ae1329;
+  --grad-primary: linear-gradient(135deg, #0a47e2, #661cf0);
+  --blur: blur(12px);
   --shadow: 0 2px 16px rgba(80,100,200,0.1);
+  --header-bg: rgba(255,255,255,0.7);
+  --panel-bg: rgba(255,255,255,0.35);
+  --card-shadow: 0 2px 12px rgba(80,100,200,0.07);
+  --label-case: uppercase;
+  --label-track: 0.09em;
+  --label-size: 10px;
+  --radius: 12px;
   --mono: 'JetBrains Mono', monospace;
   --sans: 'Inter', sans-serif;
+  --cc0-bg: rgba(79,126,247,0.08);  --cc0-line: rgba(79,126,247,0.2);  --cc0-ink: #0a47e2;
+  --cc1-bg: rgba(155,107,245,0.08); --cc1-line: rgba(155,107,245,0.2); --cc1-ink: #661cf0;
+  --cc2-bg: rgba(24,201,138,0.08);  --cc2-line: rgba(24,201,138,0.2);  --cc2-ink: #0c6747;
+  --cc3-bg: rgba(245,166,35,0.08);  --cc3-line: rgba(245,166,35,0.2);  --cc3-ink: #7e5106;
+  --cc4-bg: rgba(240,82,138,0.08);  --cc4-line: rgba(240,82,138,0.2);  --cc4-ink: #ac0f47;
+  --cc5-bg: rgba(255,120,60,0.08);  --cc5-line: rgba(255,120,60,0.2);  --cc5-ink: #a23200;
 }
 
 html, body, #root {
@@ -30,20 +96,25 @@ html, body, #root {
   -webkit-font-smoothing: antialiased;
 }
 body {
-  background: linear-gradient(135deg, #e8eeff 0%, #f5eeff 50%, #eef5ff 100%);
+  background: var(--app-bg);
   background-attachment: fixed;
   overflow: hidden;
 }
 
+/* Angka waktu dan token sejajar */
+.num { font-variant-numeric: tabular-nums; }
+
 /* scrollbar */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(100,120,220,0.2); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(100,120,220,0.4); }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--tint) 28%, transparent); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--tint) 45%, transparent); }
 
-input, select, textarea, button { font-family: var(--sans); }
+input, select, textarea, button { font-family: var(--sans); color: inherit; }
+button { transition: background-color .15s, border-color .15s, color .15s, transform .1s; }
+button:not(:disabled):active { transform: translateY(1px); }
 
-/* Penanda fokus keyboard: biru tua 6.97:1 di atas putih */
+/* Penanda fokus keyboard */
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
@@ -56,7 +127,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
   }
   button, [role="button"]:not([data-timeline]) { min-width: 44px; }
 }
-select option { background: #fff; color: var(--text); }
+select option { background: var(--paper); color: var(--text); }
+
+details > summary { cursor: pointer; list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
 
 /* ── Mobile override: allow body scroll ── */
 @media (max-width: 640px) {
@@ -68,42 +142,41 @@ select option { background: #fff; color: var(--text); }
 .drawer-overlay {
   display: none;
   position: fixed; inset: 0; z-index: 40;
-  background: rgba(10,15,40,0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(20,18,15,0.45);
 }
 .drawer-overlay.open { display: block; }
 
-/* ── Slide-in drawer (left panel on mobile) ── */
+/* ── Slide-in drawer (panel kiri di ponsel, riwayat di semua ukuran) ── */
 .side-drawer {
   position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
   width: 88vw; max-width: 340px;
-  background: rgba(240,244,255,0.97);
-  backdrop-filter: blur(24px);
-  box-shadow: 4px 0 32px rgba(80,100,200,0.18);
+  background: var(--bg);
+  border-right: 1px solid var(--border2);
   transform: translateX(-100%);
-  transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  transition: transform 0.24s cubic-bezier(0.2,0,0,1);
   display: flex; flex-direction: column; overflow: hidden;
 }
+.side-drawer.right { left: auto; right: 0; max-width: 420px; border-right: none; border-left: 1px solid var(--border2); transform: translateX(100%); }
 .side-drawer.open { transform: translateX(0); }
+@media (prefers-reduced-motion: reduce) { .side-drawer { transition: none; } }
 
 /* ── Bottom tab bar (mobile only) ── */
 .bottom-nav {
   display: none;
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
-  height: 72px;
-  background: rgba(255,255,255,0.94);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(100,120,220,0.15);
-  box-shadow: 0 -4px 24px rgba(80,100,200,0.12);
+  height: 64px;
+  background: var(--header-bg);
+  backdrop-filter: var(--blur);
+  border-top: 1px solid var(--border2);
   justify-content: space-around; align-items: stretch; padding: 0;
 }
 @media (max-width: 640px) {
   .bottom-nav { display: flex; }
 }
 
-/* ── Pulse animation ── */
 @keyframes pulse { 0%,100%{opacity:.65} 50%{opacity:1} }
 @keyframes spin { to{transform:rotate(360deg)} }
+@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 
 /* ── Pemisah panel yang bisa diseret ── */
 .panel-resizer:hover > div { width: 3px !important; background: var(--accent) !important; }

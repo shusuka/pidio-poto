@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { Icon } from './ui'
 
 const WIDTH_KEY = 'videoprompt_panel_w'
 const DEFAULT_W = 360
@@ -15,7 +16,7 @@ function loadWidth() {
  * Desktop: side-by-side (leftPanel | rightPanel)
  * Mobile:  rightPanel full width + floating drawer for leftPanel + FAB trigger
  */
-export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeBtn, drawerLabel = 'Settings' }) {
+export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeBtn, drawerLabel = 'Pengaturan' }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [width, setWidth] = useState(loadWidth)
   const [dragging, setDragging] = useState(false)
@@ -55,12 +56,12 @@ export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeB
     return (
       <div style={{ display:'flex', height:'100%', overflow:'hidden', userSelect: dragging ? 'none' : undefined, cursor: dragging ? 'col-resize' : undefined }}>
         {/* Left panel */}
-        <div style={{ width, minWidth:width, display:'flex', flexDirection:'column', overflow:'hidden', background:'rgba(255,255,255,0.35)', backdropFilter:'blur(10px)' }}>
+        <div style={{ width, minWidth:width, display:'flex', flexDirection:'column', overflow:'hidden', background:'var(--panel-bg)', backdropFilter:'var(--blur)', borderRight:'1px solid var(--border)' }}>
           <div style={{ flex:1, overflowY:'auto', padding:'14px 12px', display:'flex', flexDirection:'column', gap:12 }}>
             {leftPanel}
           </div>
           {analyzeBtn && (
-            <div style={{ padding:12, borderTop:'1px solid rgba(100,120,220,0.12)', flexShrink:0 }}>
+            <div style={{ padding:12, borderTop:'1px solid color-mix(in srgb, var(--tint) 12%, transparent)', flexShrink:0 }}>
               {analyzeBtn}
             </div>
           )}
@@ -68,7 +69,7 @@ export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeB
         {/* Pemisah yang bisa diseret */}
         <div onPointerDown={startResize} onDoubleClick={resetWidth} title="Seret untuk mengubah lebar panel · dobel-klik untuk reset"
           className="panel-resizer" style={{ width:8, marginLeft:-4, marginRight:-4, cursor:'col-resize', position:'relative', zIndex:5, flexShrink:0, display:'flex', justifyContent:'center' }}>
-          <div style={{ width: dragging ? 3 : 1, height:'100%', background: dragging ? 'var(--accent)' : 'rgba(100,120,220,0.18)', transition:'background .15s' }} />
+          <div style={{ width: dragging ? 3 : 1, height:'100%', background: dragging ? 'var(--accent)' : 'color-mix(in srgb, var(--tint) 18%, transparent)', transition:'background .15s' }} />
         </div>
         {/* Right panel */}
         <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0 }}>
@@ -88,7 +89,7 @@ export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeB
       {/* Slide-in drawer */}
       {/* React 18 belum kenal prop inert boolean, jadi pakai string kosong */}
       <div className={`side-drawer${drawerOpen ? ' open' : ''}`} inert={drawerOpen ? undefined : ''}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 14px 10px', flexShrink:0, borderBottom:'1px solid rgba(100,120,220,0.12)' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 14px 10px', flexShrink:0, borderBottom:'1px solid color-mix(in srgb, var(--tint) 12%, transparent)' }}>
           <span style={{ fontSize:12, fontWeight:700, color:'var(--text)', letterSpacing:'-0.01em' }}>{drawerLabel}</span>
           <button onClick={() => setDrawerOpen(false)} aria-label="Tutup pengaturan" style={{ background:'none', border:'none', fontSize:18, color:'var(--text3)', cursor:'pointer', lineHeight:1, padding:'2px 4px' }}>✕</button>
         </div>
@@ -96,21 +97,21 @@ export default function MobileLayout({ isMobile, leftPanel, rightPanel, analyzeB
           {leftPanel}
         </div>
         {analyzeBtn && (
-          <div style={{ padding:'10px 12px', borderTop:'1px solid rgba(100,120,220,0.12)', flexShrink:0 }}>
+          <div style={{ padding:'10px 12px', borderTop:'1px solid color-mix(in srgb, var(--tint) 12%, transparent)', flexShrink:0 }}>
             {analyzeBtn}
           </div>
         )}
       </div>
 
       {/* Mobile top action bar */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', background:'rgba(255,255,255,0.5)', borderBottom:'1px solid rgba(100,120,220,0.1)', backdropFilter:'blur(10px)', flexShrink:0 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 12px', background:'color-mix(in srgb, var(--paper) 50%, transparent)', borderBottom:'1px solid color-mix(in srgb, var(--tint) 10%, transparent)', backdropFilter:'var(--blur)', flexShrink:0 }}>
         <button onClick={() => setDrawerOpen(true)} style={{
           display:'flex', alignItems:'center', gap:6,
           padding:'7px 14px', fontSize:12, fontWeight:600,
-          background:'rgba(79,126,247,0.1)', border:'1px solid rgba(79,126,247,0.3)',
+          background:'color-mix(in srgb, var(--c-blue) 10%, transparent)', border:'1px solid color-mix(in srgb, var(--c-blue) 30%, transparent)',
           color:'var(--accent)', borderRadius:9, cursor:'pointer',
         }}>
-          ⚙ {drawerLabel}
+          <Icon name="settings" size={16} /> {drawerLabel}
         </button>
         {analyzeBtn && (
           <div style={{ flex:1 }}>

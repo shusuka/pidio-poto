@@ -1,9 +1,10 @@
+import { RETIRED_PLATFORMS } from '../config/platforms'
 import { useState, useCallback, useRef } from 'react'
 
 const PROVIDER_KEY = 'videoprompt_provider'
 const KEY_SLOT = { gemini: 'videoprompt_gemini_key', claude: 'videoprompt_claude_key' }
 const MODEL_KEY = 'videoprompt_model_'
-const DEFAULT_MODEL = { gemini: 'gemini-3.8-flash', claude: 'claude-opus-5' }
+export const DEFAULT_MODEL = { gemini: 'gemini-3.8-flash', claude: 'claude-opus-5' }
 // Model lama yang sudah dimatikan/diganti → arahkan ke pengganti
 const RETIRED = {
   'gemini-3-flash-preview': 'gemini-3.8-flash',
@@ -17,13 +18,28 @@ function loadModel(provider) {
 }
 
 // Ambil key tersimpan untuk provider; fallback ke key lama (videoprompt_apikey) untuk Gemini.
-function loadKey(provider) {
+export function loadKey(provider) {
   return localStorage.getItem(KEY_SLOT[provider])
     || (provider === 'gemini' ? localStorage.getItem('videoprompt_apikey') : '')
     || ''
 }
 
 const savedProvider = localStorage.getItem(PROVIDER_KEY) || 'gemini'
+
+// Pengaturan yang diingat per perangkat (tanpa API key; key punya slot sendiri)
+const PREFS_KEY = 'videoprompt_prefs'
+const PREF_FIELDS = ['theme', 'advanced', 'lock', 'promptMode', 'customTarget', 'lang', 'detailLevel', 'generateMode', 'focusArea', 'toggleCinematic', 'toggleMotion', 'toggleAiParams', 'markSources']
+function loadPrefs() {
+  try {
+    const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')
+    if (p.generateMode === 'vulgar') p.generateMode = 'precise'
+    if (RETIRED_PLATFORMS[p.promptMode]) p.promptMode = RETIRED_PLATFORMS[p.promptMode]
+    return p
+  } catch { return {} }
+}
+function savePrefs(state) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(Object.fromEntries(PREF_FIELDS.map(k => [k, state[k]])))) } catch { /* abaikan */ }
+}
 
 const initialState = {
   provider: savedProvider,
@@ -35,7 +51,19 @@ const initialState = {
   toggleMotion: true,
   toggleAiParams: true,
   lang: 'en',
-  promptMode: 'douyin',
+  promptMode: 'kling',
+  customTarget: '',         // model/versi target yang ditulis pengguna
+  detailLevel: 'High',
+  theme: 'studio',          // studio (baru) | klasik (tampilan lama)
+  advanced: false,          // mode Lanjutan menampilkan semua pengaturan
+  lock: {},                 // kunci konsistensi {character, product, wardrobe, palette, style}
+  goal: null,               // pilihan di layar awal "Apa yang ingin kamu buat?"
+  variationBase: '',        // prompt dasar tab Variasi
+  pendingImage: null,       // frame adegan yang dikirim ke tab Image Prompt
+  pendingClips: null,       // adegan yang dikirim ke Editor
+  restore: null,            // entri riwayat yang sedang dibuka
+  insight: null,
+  story: '',
   focusArea: 'all',
   generateMode: 'precise',
   videoFile: null,
@@ -59,7 +87,7 @@ const initialState = {
 }
 
 export function useStore() {
-  const [state, setState] = useState(() => ({ ...initialState }))
+  const [state, setState] = useState(() => ({ ...initialState, ...loadPrefs() }))
 
   const set = useCallback((updates) => {
     setState(prev => {
@@ -80,6 +108,7 @@ export function useStore() {
         if (next.apiKey) localStorage.setItem(slot, next.apiKey)
         else localStorage.removeItem(slot)
       }
+      if (PREF_FIELDS.some(k => k in patch)) savePrefs(next)
       return next
     })
   }, [])

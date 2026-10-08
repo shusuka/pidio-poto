@@ -2,6 +2,7 @@
 // Semua waktu dikendalikan aplikasi (hasil deteksi adegan), bukan dikarang AI:
 // AI hanya mengisi teks untuk id adegan/slot yang kita tentukan.
 import { PLATFORM_CONFIGS, FOCUS_INSTR, DETAIL_INSTR } from './gemini'
+import { videoTargetName } from '../config/platforms'
 import { fmtTime, parseTime, fmtStamp } from './media'
 
 export const GLOBAL_FIELDS = [
@@ -16,10 +17,10 @@ export const GLOBAL_FIELDS = [
 ]
 
 export const SOURCES = {
-  observed:  { id: 'Terlihat',  en: 'Observed',      color: '#0c6747', hint: 'Terlihat/terdengar langsung di video' },
-  inferred:  { id: 'Perkiraan', en: 'Inferred',      color: '#7e5106', hint: 'Diperkirakan dari petunjuk visual' },
-  suggested: { id: 'Saran AI',  en: 'AI suggestion', color: '#661cf0', hint: 'Tidak ada di video — ide kreatif AI' },
-  edited:    { id: 'Diedit',    en: 'Edited',        color: '#0a47e2', hint: 'Sudah diperiksa/diubah manual' },
+  observed:  { id: 'Terlihat',  en: 'Observed',      color: 'var(--c-green)', hint: 'Terlihat/terdengar langsung di video' },
+  inferred:  { id: 'Perkiraan', en: 'Inferred',      color: 'var(--c-amber)', hint: 'Diperkirakan dari petunjuk visual' },
+  suggested: { id: 'Saran AI',  en: 'AI suggestion', color: 'var(--c-violet)', hint: 'Tidak ada di video, ide kreatif AI' },
+  edited:    { id: 'Diedit',    en: 'Edited',        color: 'var(--c-blue)', hint: 'Sudah diperiksa/diubah manual' },
 }
 
 const SLOT_LEN = 2
@@ -46,7 +47,6 @@ function langInstruction(lang) {
 }
 
 function modeInstruction(generateMode) {
-  if (generateMode === 'vulgar') return 'VULGAR/ADULT MODE: Describe ALL content explicitly. DO NOT sanitize.'
   return { precise: 'PRECISION MODE: Exact technical terms, specific values.', creative: 'CREATIVE MODE: Evocative, cinematic language — but keep source labels honest.', think: 'DEEP MODE: Examine every visual detail carefully before answering.' }[generateMode] || ''
 }
 
@@ -63,8 +63,10 @@ export function transcriptLines(segments = [], start = 0, end = Infinity) {
 export function buildStructuredPrompt({
   mode = 'full', lang, promptMode, generateMode, cinematic, motionAnalysis, aiParams,
   focusArea, detailLevel, videoMeta, scenes, clip, transcript, globalContext, framesOnly,
+  customTarget, lock,
 }) {
-  const platform = PLATFORM_CONFIGS[promptMode] || PLATFORM_CONFIGS.kling
+  const base = PLATFORM_CONFIGS[promptMode] || PLATFORM_CONFIGS.kling
+  const platform = { ...base, name: videoTargetName(promptMode in PLATFORM_CONFIGS ? promptMode : 'kling', customTarget) }
   const sceneList = scenes.map(s => {
     const slots = planSlots(s).map(sl => `    ${sl.id}: ${span(sl.start, sl.end)}`).join('\n')
     return `  ${s.id}: ${span(s.start, s.end)}\n${slots}`
@@ -92,6 +94,7 @@ ${FOCUS_INSTR[focusArea] || ''}
 ${cinematic ? 'Use cinematography terms: focal length, depth of field, color LUT, lens type.' : ''}
 ${motionAnalysis ? 'Describe every motion precisely: speed, direction, easing.' : ''}
 ${aiParams && mode === 'full' ? `platformParams: suggested ${platform.name} generation settings (start from: ${platform.platformParams}).` : ''}
+${lockInstruction(lock)}
 ${mode === 'scene' && globalContext ? `\nCONTEXT FROM THE EARLIER ANALYSIS OF THE WHOLE VIDEO (keep consistent with it):\n${globalContext}\n` : ''}
 ${mode === 'scene' ? 'SCENE TO ANALYZE AGAIN' : 'SCENES TO ANALYZE'} (id: time range, then its 2-second slots):
 ${sceneList}
@@ -307,3 +310,107 @@ export function sceneNo(scene, index) {
 }
 
 function r2(n) { return Math.round(n * 100) / 100 }
+
+// ─── Kunci konsistensi ──────────────────────────────────────────────────────
+export const LOCK_FIELDS = [
+  { key: 'character', label: 'Karakter', hint: 'Wajah, rambut, usia, ciri khas' },
+  { key: 'product',   label: 'Produk',   hint: 'Bentuk, merek, kemasan, ukuran' },
+  { key: 'wardrobe',  label: 'Pakaian',  hint: 'Baju, aksesori, warna pakaian' },
+  { key: 'palette',   label: 'Warna',    hint: 'Palet dan color grade' },
+  { key: 'style',     label: 'Gaya',     hint: 'Gaya visual, lensa, suasana' },
+]
+
+export function lockInstruction(lock) {
+  const rows = LOCK_FIELDS.filter(f => lock?.[f.key]?.trim()).map(f => `- ${f.label}: ${lock[f.key].trim()}`)
+  if (!rows.length) return ''
+  return `CONSISTENCY LOCK (reference descriptions from the user). Whenever one of these elements appears, describe it with exactly these words and never contradict them, in every scene and prompt:
+${rows.join('\n')}`
+}
+
+// ─── Prompt siap salin per adegan ───────────────────────────────────────────
+export function scenePrompt(data, scene, { promptMode, customTarget } = {}) {
+  const g = data.global
+  const p = PLATFORM_CONFIGS[promptMode] || PLATFORM_CONFIGS.kling
+  const parts = [
+    scene.summary.text,
+    g.subject?.text && `Subject: ${g.subject.text}`,
+    g.environment?.text && `Environment: ${g.environment.text}`,
+    scene.camera.text && `Camera: ${scene.camera.text}`,
+    g.lighting?.text && `Lighting: ${g.lighting.text}`,
+    g.style?.text && `Style: ${g.style.text}`,
+  ].filter(Boolean)
+  const dur = r2(scene.end - scene.start)
+  const lines = [`${videoTargetName(promptMode, customTarget)} · ${dur}s`, '', parts.join('. ').replace(/\.\./g, '.')]
+  if (scene.slots.length > 1) {
+    lines.push('')
+    scene.slots.forEach(sl => sl.text && lines.push(`[${r2(sl.start - scene.start)}-${r2(sl.end - scene.start)}s] ${sl.text}`))
+  }
+  if (scene.dialogue.text) lines.push('', `Dialogue: "${scene.dialogue.text}"`)
+  if (g.sound?.text) lines.push(`Sound: ${g.sound.text}`)
+  if (data.platformParams?.text) lines.push('', `Params: ${data.platformParams.text}`)
+  if (p.negative) lines.push(`Negative: ${p.negative}`)
+  return lines.join('\n')
+}
+
+// Bagian adegan yang masih perkiraan / saran AI dan belum diperiksa
+export function sceneReview(scene) {
+  const out = []
+  const check = (label, f) => { if (f?.text && (f.source === 'inferred' || f.source === 'suggested')) out.push({ label, source: f.source }) }
+  check('Ringkasan', scene.summary); check('Kamera', scene.camera); check('Dialog', scene.dialogue)
+  scene.slots.forEach(sl => check(`${fmtTime(sl.start, 0)}–${fmtTime(sl.end, 0)}`, sl))
+  return out
+}
+
+// ─── Revisi & adaptasi tanpa mengirim ulang video ───────────────────────────
+const SOURCE_RULE = `Every text value stays an object {"text": "...", "source": "observed|inferred|suggested|edited"}.
+- Keep the text AND source of every value you do not need to change.
+- A value you rewrite only for wording or platform format keeps its original source.
+- A value whose content changes because of the user's request becomes "suggested" (it is no longer what the video shows).`
+
+export function buildRevisePrompt({ data, instruction, sceneId, lang, lock }) {
+  const target = sceneId ? data.scenes.find(s => s.id === sceneId) : data
+  return `You edit an existing structured video analysis used to write AI video prompts.
+
+USER REQUEST: "${instruction}"
+${lock ? lockInstruction(lock) : ''}
+${langInstruction(lang)}
+
+Apply the request and change nothing else. Do not invent new scenes, ids or slots, and keep every id exactly as given.
+${SOURCE_RULE}
+Plain text inside strings, no markdown. Return ONLY the edited JSON in exactly the same shape:
+${JSON.stringify(stripForAI(target))}`
+}
+
+export function buildAdaptPrompt({ data, promptMode, customTarget, lang, aiParams }) {
+  const p = PLATFORM_CONFIGS[promptMode] || PLATFORM_CONFIGS.kling
+  return `You rewrite an existing structured video analysis for a different AI video generator: ${videoTargetName(promptMode, customTarget)}.
+Platform style: ${p.note}
+${aiParams ? `Also rewrite "platformParams" as suggested settings for this platform (start from: ${p.platformParams}).` : ''}
+${langInstruction(lang)}
+
+Keep the meaning, the scene ids and slot ids. Only adapt wording, order and terminology to what this platform understands best, and drop settings it does not support.
+${SOURCE_RULE}
+Plain text inside strings, no markdown. Return ONLY the JSON in exactly the same shape:
+${JSON.stringify(stripForAI(data))}`
+}
+
+function stripForAI(obj) {
+  if (!obj || typeof obj !== 'object') return obj
+  const { missing, resolution, ...rest } = obj
+  if (rest.scenes) rest.scenes = rest.scenes.map(s => ({ ...s, slots: Object.fromEntries(s.slots.map(sl => [sl.id, { text: sl.text, source: sl.source }])) }))
+  if (rest.slots) rest.slots = Object.fromEntries(rest.slots.map(sl => [sl.id, { text: sl.text, source: sl.source }]))
+  return rest
+}
+
+// Hasil revisi/adaptasi kembali ke bentuk data aplikasi (waktu dari aplikasi, bukan AI)
+export function mergeRevised(data, raw, sceneId) {
+  if (sceneId) {
+    const scene = data.scenes.find(s => s.id === sceneId)
+    const patch = normalizeScenePatch(raw, scene)
+    const next = { ...data, scenes: data.scenes.map(s => s.id === sceneId ? patch : s) }
+    next.missing = countMissing(next)
+    return next
+  }
+  const next = normalizeAnalysis({ ...raw, platformParams: raw.platformParams ?? data.platformParams }, data.scenes, { aiParams: !!data.platformParams || !!raw.platformParams, resolution: data.resolution })
+  return next
+}

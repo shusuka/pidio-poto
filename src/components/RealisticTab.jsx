@@ -1,95 +1,111 @@
 import React, { useState } from 'react'
-import { callAI, fileToBase64 } from '../utils/gemini'
+import { callAI } from '../utils/gemini'
+import { VIDEO_PLATFORMS, videoTargetName } from '../config/platforms'
+import { lockInstruction } from '../utils/analysis'
+import { addHistory } from '../utils/db'
 import MobileLayout from './MobileLayout'
-
-const CC = [
-  { bg:'rgba(79,126,247,0.08)',  border:'rgba(79,126,247,0.2)',  accent:'#0a47e2' },
-  { bg:'rgba(155,107,245,0.08)', border:'rgba(155,107,245,0.2)', accent:'#661cf0' },
-  { bg:'rgba(24,201,138,0.08)',  border:'rgba(24,201,138,0.2)',  accent:'#0c6747' },
-  { bg:'rgba(245,166,35,0.08)',  border:'rgba(245,166,35,0.2)',  accent:'#7e5106' },
-  { bg:'rgba(240,82,138,0.08)',  border:'rgba(240,82,138,0.2)',  accent:'#ac0f47' },
-  { bg:'rgba(255,120,60,0.08)',  border:'rgba(255,120,60,0.2)',  accent:'#a23200' },
-]
-
-const PLATFORMS = [
-  { id:'sora',    label:'OpenAI Sora' },
-  { id:'runway',  label:'Runway Gen-3' },
-  { id:'kling',   label:'Kling AI' },
-  { id:'wan',     label:'Wan 2.1' },
-  { id:'hailuo',  label:'Hailuo MiniMax' },
-  { id:'luma',    label:'Luma Dream Machine' },
-  { id:'veo',     label:'Google Veo 3' },
-]
+import LockCard from './LockCard'
+import { GlassCard, Btn, PrimaryBtn, ActionBtn, Seg, Toggle, Spin, Note, CC, tint, inputStyle, copyText, downloadText, SelField } from './ui'
 
 const THEMES = [
-  { id:'pov',         label:'👁 POV Immersive',        desc:'First-person viral shots · TikTok #1' },
-  { id:'travel',      label:'✈️ Cinematic Travel',      desc:'Aesthetic destination · IG Reels viral' },
-  { id:'transform',   label:'⚡ Before/After Reveal',   desc:'Transformation glow-up · massive views' },
-  { id:'darkacademia',label:'🌙 Dark Academia Aesthetic',desc:'Moody mystery vibes · trending IG/TT' },
-  { id:'neon',        label:'🏙 Neon City Night',        desc:'Cyberpunk urban · YouTube viral' },
-  { id:'emotional',   label:'💙 Raw Emotional Moment',  desc:'Real storytelling · highest engagement' },
-  { id:'surreal',     label:'🌀 AI Surreal / Dreamlike', desc:'Impossible scenes · AI content trend' },
-  { id:'fashion',     label:'👗 Fashion / Outfit Reveal',desc:'Style transition · TikTok & IG top' },
-  { id:'asmr',        label:'🍃 Cozy ASMR Calm',         desc:'Satisfying slow-mo · binge-watch content' },
-  { id:'hype',        label:'🔥 Hype / Motivational',   desc:'Hustle grind energy · YouTube Shorts' },
-  { id:'dance',       label:'🎵 Beat Sync / Dance',      desc:'Music-driven moves · TikTok top trending' },
-  { id:'horror',      label:'😱 Jump Scare / Thriller',  desc:'Horror tension · high rewatch rate' },
-  { id:'custom',      label:'✏️ Custom Theme',           desc:'Tulis tema sendiri' },
+  { id: 'same',      label: 'Sama dengan prompt dasar', desc: 'Variasi sudut, momen, dan komposisi saja' },
+  { id: 'pov',       label: 'POV',                  desc: 'Sudut pandang orang pertama' },
+  { id: 'travel',    label: 'Perjalanan sinematik', desc: 'Lanskap dan tempat yang estetik' },
+  { id: 'transform', label: 'Sebelum/sesudah',      desc: 'Transformasi dengan momen reveal' },
+  { id: 'darkacademia', label: 'Dark academia',     desc: 'Suasana muram dan misterius' },
+  { id: 'neon',      label: 'Kota neon malam',      desc: 'Urban, lampu neon, cyberpunk' },
+  { id: 'emotional', label: 'Momen emosional',      desc: 'Cerita yang terasa nyata' },
+  { id: 'surreal',   label: 'Surreal',              desc: 'Adegan yang mustahil, seperti mimpi' },
+  { id: 'fashion',   label: 'Outfit reveal',        desc: 'Transisi gaya dan pakaian' },
+  { id: 'asmr',      label: 'Tenang / ASMR',        desc: 'Slow motion yang memuaskan' },
+  { id: 'hype',      label: 'Motivasi',             desc: 'Energi tinggi, kerja keras' },
+  { id: 'dance',     label: 'Sinkron musik',        desc: 'Gerakan mengikuti ketukan' },
+  { id: 'horror',    label: 'Thriller',             desc: 'Ketegangan dan kejutan' },
+  { id: 'custom',    label: 'Tema sendiri',         desc: 'Tulis temanya' },
 ]
+const AXES = [
+  { value: 'mixed',    label: 'Campur' },
+  { value: 'camera',   label: 'Kamera' },
+  { value: 'lighting', label: 'Cahaya' },
+  { value: 'moment',   label: 'Momen' },
+  { value: 'setting',  label: 'Latar' },
+]
+const AXIS_INSTR = {
+  mixed: 'Vary whatever makes each variation most distinct.',
+  camera: 'Vary mainly the camera: shot size, angle, lens and movement. Keep the action similar.',
+  lighting: 'Vary mainly lighting and color grade (time of day, light direction, mood).',
+  moment: 'Vary mainly the moment and action shown, as if from different points of the same story.',
+  setting: 'Vary mainly the location/background while the subject stays the same.',
+}
 
-export default function RealisticTab({ state, set, showToast, isMobile }) {
-  const [platform, setPlatform] = useState('kling')
-  const [theme, setTheme] = useState('pov')
+export default function RealisticTab({ state, set, showToast, isMobile, focusKey }) {
+  const promptMode = VIDEO_PLATFORMS[state.promptMode] ? state.promptMode : 'kling'
+  const [theme, setTheme] = useState('same')
   const [customTheme, setCustomTheme] = useState('')
-  const [basePrompt, setBasePrompt] = useState('')
-  const [variations, setVariations] = useState(3) // how many variations to generate
+  const [count, setCount] = useState(3)
+  const [axis, setAxis] = useState('mixed')
+  const [keepSubject, setKeepSubject] = useState(true)
+  const [keepStyle, setKeepStyle] = useState(false)
   const [includeAudio, setIncludeAudio] = useState(true)
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
   const [copied, setCopied] = useState({})
+  const basePrompt = state.variationBase || ''
+  const setBasePrompt = v => set({ variationBase: v })
+  const target = videoTargetName(promptMode, state.customTarget)
 
-  // Auto-load from analyze tab
+  // Buka entri riwayat
   React.useEffect(() => {
-    if (state.analysisText && !basePrompt) setBasePrompt(state.analysisText)
-  }, [state.analysisText])
+    const r = state.restore
+    if (!r || r.kind !== 'variations') return
+    setResults(r.data?.results || [])
+    set({ restore: null, ...(r.data?.base ? { variationBase: r.data.base } : {}) })
+  }, [state.restore])
 
   async function generateVariations() {
-    if (!basePrompt.trim()) return showToast('Isi base prompt dulu!', true)
-    if (!state.apiKey) return showToast('Masukkan API key!', true)
-    if (theme === 'custom' && !customTheme.trim()) return showToast('Tulis tema custom dulu!', true)
+    if (!basePrompt.trim()) return showToast('Isi prompt dasar dulu', true)
+    if (!state.apiKey) { showToast('Isi API key dulu', true); return focusKey?.() }
+    if (theme === 'custom' && !customTheme.trim()) return showToast('Tulis temanya dulu', true)
 
-    setLoading(true)
+    setLoading(true); setError(null)
     setResults([])
-    const themeLabel = theme === 'custom' ? customTheme.trim() : THEMES.find(t => t.id === theme)?.label || theme
-    const platformLabel = PLATFORMS.find(p => p.id === platform)?.label || platform
+    const t = THEMES.find(x => x.id === theme)
+    const themeLine = theme === 'same' ? 'Keep the theme and atmosphere of the base prompt.'
+      : `All variations share the THEME: "${theme === 'custom' ? customTheme.trim() : `${t.label} (${t.desc})`}".`
+    const keeps = [
+      keepSubject && 'Keep the main subject (person/product/character) exactly as described in the base prompt in every variation.',
+      keepStyle && 'Keep the visual style, color grade and lens look of the base prompt in every variation.',
+    ].filter(Boolean).join('\n')
 
     try {
-      const prompt = `You are an expert AI video prompt engineer for ${platformLabel}.
+      const prompt = `You are an expert AI video prompt engineer for ${target}.
+Platform style: ${VIDEO_PLATFORMS[promptMode].note}
 
 BASE PROMPT:
 ${basePrompt}
 
-TASK: Generate ${variations} different video prompt variations with the same THEME: "${themeLabel}"
+TASK: Write ${count} clearly different video prompt variations.
+${themeLine}
+${AXIS_INSTR[axis]}
+${keeps}
+${lockInstruction(state.lock)}
 
-Each variation must:
-- Keep the same theme and atmosphere as the base
-- Be a completely different scene, angle, moment, or perspective
-- Include an audio section if not present
-- Be ready to paste directly into ${platformLabel}
+Each variation must be a different scene, angle, moment, or perspective and be ready to paste into ${target}.
 
-OUTPUT FORMAT — write EXACTLY like this, no asterisks, no markdown bold, no bullet symbols:
+OUTPUT FORMAT. Write EXACTLY like this, no asterisks, no markdown, no bullet symbols:
 
 === VARIATION 1 ===
-[One-line scene summary]
+Beda: what is different from the base prompt, at most 8 words, in Bahasa Indonesia
+Judul: a short name for this variation, at most 4 words, in Bahasa Indonesia
 
-[Main prompt paragraph — setting, atmosphere, key elements]
-[Additional detail paragraph if needed]
+[Main prompt paragraph: setting, atmosphere, key elements]
 
 [00-02s]
-Description of what happens.
+What happens.
 
 [02-04s]
-Description of what happens.
+What happens.
 
 [continue per 2s until end]
 
@@ -100,216 +116,156 @@ Environment:
 Setting and atmosphere details.
 
 Audio:
-${includeAudio ? 'Sound design — music genre/mood, ambient sounds, key audio elements, no asterisks' : 'No audio description needed.'}
+${includeAudio ? 'Sound design: music genre/mood, ambient sounds, key audio elements.' : 'None.'}
 
 Style:
 Visual style and aesthetic.
 
 === VARIATION 2 ===
-[repeat same structure]
-
-[continue for all ${variations} variations]
+[same structure]
 
 STRICT RULES:
-- No asterisks (*) anywhere in output
-- No markdown formatting (no **bold**, no _italic_)
-- No bullet points (- or •)
-- Plain text only
-- Each variation must feel genuinely different from the others
-- Each variation must be self-contained: never write "same as above" or refer to another variation
-- Platform: ${platformLabel}`
+- Plain text only. No asterisks, no **bold**, no bullet points.
+- Each variation is self-contained: never write "same as above".
+- The "Beda" line must name the real difference, e.g. "kamera statis, close-up wajah" or "cahaya senja hangat".`
 
-      const { text, tokens } = await callAI({ provider: state.provider,
-        apiKey: state.apiKey, model: state.model, prompt,
-        temperature: 0.85,
-      })
+      const { text, tokens } = await callAI({ provider: state.provider, apiKey: state.apiKey, model: state.model, prompt, temperature: 0.85 })
       set(prev => ({ totalTokens: prev.totalTokens + tokens }))
 
-      // Split by === VARIATION N ===
-      const parts = text.split(/===\s*VARIATION\s*\d+\s*===/).filter(p => p.trim())
-      const parsed = parts.map((p, i) => ({ index: i + 1, prompt: p.trim() }))
-      setResults(parsed.length > 0 ? parsed : [{ index: 1, prompt: text.trim() }])
-      showToast(`${parsed.length || 1} variasi berhasil! ✓`)
+      const parts = text.split(/===\s*VARIATION\s*\d+\s*===/i).filter(p => p.trim())
+      const parsed = (parts.length ? parts : [text]).map((p, i) => {
+        let body = p.trim()
+        const diff = body.match(/^Beda\s*:\s*(.+)$/im)?.[1]?.trim() || ''
+        const title = body.match(/^Judul\s*:\s*(.+)$/im)?.[1]?.trim() || ''
+        body = body.replace(/^Beda\s*:.*$/im, '').replace(/^Judul\s*:.*$/im, '').trim()
+        return { index: i + 1, title, diff, prompt: body }
+      })
+      setResults(parsed)
+      addHistory({ kind: 'variations', title: parsed.map(r => r.title || `Variasi ${r.index}`).join(' · ').slice(0, 120), platform: target, text: parsed.map(r => r.prompt).join('\n\n'), data: { base: basePrompt, results: parsed } })
+      showToast(`${parsed.length} variasi siap`)
     } catch (e) {
-      showToast('Error: ' + e.message, true)
+      setError(e.message)
+      showToast('Gagal: ' + e.message, true)
     }
     setLoading(false)
   }
 
   function copy(text, key) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(p => ({...p,[key]:true}))
-      setTimeout(() => setCopied(p => ({...p,[key]:false})), 2000)
-      showToast('Disalin!')
+    copyText(text, showToast).then(ok => {
+      if (!ok) return
+      setCopied(p => ({ ...p, [key]: true }))
+      setTimeout(() => setCopied(p => ({ ...p, [key]: false })), 1800)
     })
   }
 
-  function exportAll() {
-    const content = results.map(r => `=== VARIATION ${r.index} ===\n${r.prompt}`).join('\n\n')
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([content], {type:'text/plain'}))
-    a.download = 'video-variations.txt'; a.click()
-  }
-
   const generateBtn = (
-    <button onClick={generateVariations} disabled={loading} style={{
-      width:'100%', padding:12, fontSize:13, fontWeight:700,
-      background: loading ? 'rgba(100,120,220,0.15)' : 'linear-gradient(135deg,#661cf0,#ac0f47)',
-      border:'none', color: loading ? 'var(--text3)' : 'white',
-      borderRadius:11, cursor: loading ? 'not-allowed' : 'pointer',
-      boxShadow: loading ? 'none' : '0 6px 24px rgba(155,107,245,0.35)',
-      display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-    }}>
-      {loading ? <><Spin/>Generating...</> : <><span>✨</span> Generate Variations</>}
-    </button>
+    <PrimaryBtn onClick={generateVariations} disabled={loading}>
+      {loading ? <><Spin /> Menulis variasi…</> : `Buat ${count} variasi`}
+    </PrimaryBtn>
   )
 
   const leftPanel = (
     <>
-      {/* PLATFORM */}
-      <GlassCard color={CC[0]} label="Platform">
-        <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-          {PLATFORMS.map(p => (
-            <button key={p.id} onClick={() => setPlatform(p.id)} style={{
-              padding:'5px 10px', fontSize:11, fontWeight:600,
-              background: platform===p.id ? 'rgba(79,126,247,0.15)' : 'rgba(255,255,255,0.5)',
-              border:`1.5px solid ${platform===p.id ? '#0a47e2' : 'rgba(100,120,220,0.15)'}`,
-              color: platform===p.id ? '#0a47e2' : 'var(--text2)',
-              borderRadius:8, cursor:'pointer',
-            }}>{p.label}</button>
-          ))}
-        </div>
+      <GlassCard color={CC[0]} label="Platform tujuan">
+        <SelField value={promptMode} onChange={v => set({ promptMode: v })} label="Platform tujuan"
+          options={Object.entries(VIDEO_PLATFORMS).map(([id, p]) => ({ value: id, label: p.name }))} />
+        <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6 }}>Sama dengan pilihan di tab Analisis.</div>
       </GlassCard>
 
-      {/* THEME */}
-      <GlassCard color={CC[1]} label="Theme">
-        <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-          {THEMES.map(t => (
-            <button key={t.id} onClick={() => setTheme(t.id)} style={{
-              width:'100%', padding:'7px 10px', fontSize:11, fontWeight:500, textAlign:'left',
-              display:'flex', alignItems:'center', gap:8,
-              background: theme===t.id ? 'rgba(155,107,245,0.12)' : 'rgba(255,255,255,0.45)',
-              border:`1.5px solid ${theme===t.id ? '#661cf0' : 'rgba(100,120,220,0.15)'}`,
-              color: theme===t.id ? '#661cf0' : 'var(--text2)',
-              borderRadius:9, cursor:'pointer',
-            }}>
-              <span style={{ flex:1 }}>{t.label}</span>
-              <span style={{ fontSize: 11, color:'var(--text3)', fontWeight:400 }}>{t.desc}</span>
-            </button>
-          ))}
+      <GlassCard color={CC[2]} label="Yang dibuat berbeda">
+        <Seg value={axis} onChange={setAxis} options={AXES} label="Yang dibuat berbeda" />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+          <Toggle on={keepSubject} onClick={() => setKeepSubject(v => !v)} title="Subjek utama tidak berubah di semua variasi">Kunci subjek</Toggle>
+          <Toggle on={keepStyle} onClick={() => setKeepStyle(v => !v)} title="Gaya visual dan color grade tidak berubah">Kunci gaya visual</Toggle>
+          <Toggle on={includeAudio} onClick={() => setIncludeAudio(v => !v)} title="Tambahkan bagian audio di setiap variasi">Sertakan audio</Toggle>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text3)', margin: '10px 0 4px' }}>Jumlah variasi</div>
+        <Seg value={count} onChange={setCount} label="Jumlah variasi" options={[1, 2, 3, 4, 5].map(n => ({ value: n, label: String(n) }))} />
+      </GlassCard>
+
+      <GlassCard color={CC[1]} label="Tema">
+        <div role="radiogroup" aria-label="Tema" style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {THEMES.map(t => {
+            const on = theme === t.id
+            return (
+              <button key={t.id} role="radio" aria-checked={on} onClick={() => setTheme(t.id)} style={{
+                width: '100%', padding: '7px 10px', fontSize: 12, textAlign: 'left',
+                display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap',
+                background: on ? tint('var(--c-violet)', 10) : 'transparent',
+                border: `1px solid ${on ? 'var(--c-violet)' : 'transparent'}`,
+                color: on ? 'var(--c-violet)' : 'var(--text2)', borderRadius: 7, cursor: 'pointer',
+              }}>
+                <span style={{ fontWeight: 600 }}>{t.label}</span>
+                <span style={{ fontSize: 11, color: 'var(--text3)' }}>{t.desc}</span>
+              </button>
+            )
+          })}
         </div>
         {theme === 'custom' && (
-          <div style={{ marginTop:8 }}>
-            <input
-              value={customTheme}
-              onChange={e => setCustomTheme(e.target.value)}
-              placeholder="Contoh: underwater civilization, ancient mythology..."
-              style={{ width:'100%', padding:'7px 10px', fontSize:11, color:'var(--text)', background:'rgba(255,255,255,0.6)', border:'1.5px solid rgba(155,107,245,0.3)', borderRadius:8, boxSizing:'border-box' }}
-            />
-          </div>
+          <input value={customTheme} onChange={e => setCustomTheme(e.target.value)} aria-label="Tema sendiri"
+            placeholder="mis. peradaban bawah laut, mitologi Jawa" style={{ ...inputStyle, width: '100%', marginTop: 8 }} />
         )}
       </GlassCard>
 
-      {/* OPTIONS */}
-      <GlassCard color={CC[2]} label="Options">
-        <div style={{ marginBottom:10 }}>
-          <div style={{ fontSize:10, color:'var(--text3)', marginBottom:6 }}>Jumlah Variasi</div>
-          <div style={{ display:'flex', gap:5 }}>
-            {[1,2,3,4,5].map(n => (
-              <button key={n} onClick={() => setVariations(n)} style={{
-                flex:1, padding:'6px 0', fontSize:12, fontWeight:700,
-                background: variations===n ? 'linear-gradient(135deg,#0a47e2,#661cf0)' : 'rgba(255,255,255,0.6)',
-                border:'1px solid rgba(100,120,220,0.2)',
-                color: variations===n ? 'white' : 'var(--text2)',
-                borderRadius:8, cursor:'pointer',
-                boxShadow: variations===n ? '0 3px 10px rgba(100,130,250,0.3)' : 'none',
-              }}>{n}</button>
-            ))}
-          </div>
-        </div>
-        <button onClick={() => setIncludeAudio(a => !a)} style={{
-          width:'100%', padding:'7px 10px', fontSize:11, fontWeight:500, textAlign:'left',
-          display:'flex', justifyContent:'space-between', alignItems:'center',
-          background: includeAudio ? 'rgba(24,201,138,0.1)' : 'rgba(255,255,255,0.45)',
-          border:`1.5px solid ${includeAudio ? '#0c6747' : 'rgba(100,120,220,0.15)'}`,
-          color: includeAudio ? '#0c6747' : 'var(--text2)',
-          borderRadius:9, cursor:'pointer',
-        }}>
-          <span>🎵 Include Audio / Soundtrack</span>
-          <span style={{ fontSize:10, fontWeight:700 }}>{includeAudio ? 'ON' : 'OFF'}</span>
-        </button>
-      </GlassCard>
+      {state.advanced && <LockCard lock={state.lock} set={set} />}
     </>
   )
 
   const rightPanel = (
     <>
-      {/* BASE PROMPT */}
-      <div style={{ padding: isMobile ? '10px 12px' : '12px 14px', borderBottom:'1px solid rgba(100,120,220,0.1)', flexShrink:0, background:'rgba(255,255,255,0.4)', backdropFilter:'blur(10px)' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6, flexWrap:'wrap', gap:6 }}>
-          <span style={{ fontSize:10, fontWeight:700, color:'var(--text3)', letterSpacing:'0.08em' }}>BASE PROMPT</span>
-          <div style={{ display:'flex', gap:6 }}>
-            {state.analysisText && (
-              <button onClick={() => setBasePrompt(state.analysisText)} style={{ fontSize:10, padding:'3px 9px', background:'rgba(79,126,247,0.1)', border:'1px solid rgba(79,126,247,0.3)', color:'var(--accent)', borderRadius:6, cursor:'pointer' }}>
-                ↩ Load from Analyze
-              </button>
+      <div style={{ padding: isMobile ? '10px 12px' : '12px 16px', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+          <label htmlFor="var-base" style={{ fontSize: 13, fontWeight: 650, color: 'var(--text)' }}>Prompt dasar</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {state.analysisText && state.analysisText !== basePrompt && (
+              <Btn small onClick={() => setBasePrompt(state.analysisText)}>Ambil dari hasil Analisis</Btn>
             )}
-            <button onClick={() => setBasePrompt('')} style={{ fontSize:10, padding:'3px 9px', background:'rgba(255,255,255,0.6)', border:'1px solid rgba(100,120,220,0.2)', color:'var(--text3)', borderRadius:6, cursor:'pointer' }}>Clear</button>
+            <Btn small onClick={() => setBasePrompt('')} disabled={!basePrompt}>Kosongkan</Btn>
           </div>
         </div>
-        <textarea
+        <textarea id="var-base"
           value={basePrompt}
           onChange={e => setBasePrompt(e.target.value)}
-          placeholder="Paste prompt dari Analyze tab, atau tulis prompt dasar..."
-          style={{
-            width:'100%', minHeight: isMobile ? 70 : 90, maxHeight:160, padding:'9px 11px', fontSize:12,
-            fontFamily:'var(--sans)', lineHeight:1.65, color:'var(--text)',
-            background:'rgba(255,255,255,0.7)', border:'1.5px solid rgba(100,120,220,0.2)',
-            borderRadius:9, resize:'vertical', boxSizing:'border-box',
-          }}
+          placeholder="Tulis prompt dasar, atau kirim dari tab Analisis lewat tombol Buat variasi"
+          style={{ ...inputStyle, width: '100%', minHeight: isMobile ? 80 : 100, maxHeight: 200, padding: '9px 11px', fontSize: 13, lineHeight: 1.6, resize: 'vertical' }}
         />
       </div>
 
-      {/* RESULTS */}
-      <div style={{ flex:1, overflowY:'auto', padding: isMobile ? '12px' : 14, display:'flex', flexDirection:'column', gap:12 }}>
-
-        {results.length === 0 && !loading && (
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', flex:1, gap:12, color:'var(--text3)', paddingTop:40 }}>
-            <div style={{ fontSize:36, opacity:0.25 }}>✨</div>
-            <div style={{ fontSize:12, fontStyle:'italic', textAlign:'center', lineHeight:1.7 }}>
-              Pilih tema, isi base prompt,<br/>tentukan jumlah variasi,<br/>lalu Generate.
-            </div>
-          </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 12 : 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {error && !loading && (
+          <Note tone="error">Gagal membuat variasi: {error} <Btn small onClick={generateVariations} style={{ marginLeft: 6 }}>Coba lagi</Btn></Note>
+        )}
+        {results.length === 0 && !loading && !error && (
+          <Note>
+            Pilih apa yang dibuat berbeda (kamera, cahaya, momen, atau latar), tentukan jumlahnya, lalu tekan <strong>Buat variasi</strong>. Setiap hasil diberi keterangan bagian yang berubah.
+          </Note>
         )}
 
-        {loading && Array.from({length: variations}).map((_, i) => (
-          <GlassCard key={i} color={CC[i % CC.length]} label={`Generating variation ${i+1}...`}>
-            <div style={{ height:70, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--text3)', fontSize:12, animation:'pulse 1.2s infinite' }}>
-              ⟳ Writing variation {i+1} of {variations}...
+        {loading && Array.from({ length: count }).map((_, i) => (
+          <GlassCard key={i} color={CC[0]} label={`Variasi ${i + 1}`}>
+            <div style={{ height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: 13, animation: 'pulse 1.2s infinite' }}>
+              Menulis variasi {i + 1} dari {count}…
             </div>
           </GlassCard>
         ))}
 
-        {results.length > 0 && (
+        {results.length > 0 && !loading && (
           <>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6 }}>
-              <span style={{ fontSize:11, fontWeight:600, color:'var(--text2)' }}>
-                {results.length} variation{results.length > 1 ? 's' : ''} · {PLATFORMS.find(p=>p.id===platform)?.label} · {theme === 'custom' ? customTheme : THEMES.find(t=>t.id===theme)?.label}
-              </span>
-              {results.length > 1 && <ActionBtn onClick={exportAll}>💾 Export All</ActionBtn>}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>{results.length} variasi · {target}</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <ActionBtn copied={copied.all} onClick={() => copy(results.map(r => `=== ${r.title || `Variasi ${r.index}`} ===\n${r.prompt}`).join('\n\n'), 'all')}>Salin semua</ActionBtn>
+                <ActionBtn onClick={() => downloadText(results.map(r => `=== VARIASI ${r.index}${r.title ? ` · ${r.title}` : ''} ===\n${r.diff ? `Beda: ${r.diff}\n\n` : ''}${r.prompt}`).join('\n\n'), 'variasi-video.txt')}>Unduh .txt</ActionBtn>
+              </div>
             </div>
 
             {results.map((r, i) => (
-              <GlassCard key={i} color={CC[i % CC.length]} label={`Variation ${r.index}`}>
-                <div style={{
-                  background:'rgba(255,255,255,0.5)', border:'1px solid rgba(100,120,220,0.12)',
-                  borderRadius:9, padding:'10px 12px', fontSize:12, lineHeight:1.8,
-                  color:'var(--text)', whiteSpace:'pre-wrap', wordBreak:'break-word', minHeight:80,
-                  fontFamily:'var(--sans)',
-                }}>{r.prompt}</div>
-                <div style={{ display:'flex', gap:6, marginTop:8, justifyContent:'flex-end', flexWrap:'wrap' }}>
-                  <ActionBtn color={CC[i%CC.length].accent} copied={copied['v'+i]} onClick={() => copy(r.prompt,'v'+i)}>📋 Copy</ActionBtn>
-                  <ActionBtn onClick={() => { setBasePrompt(r.prompt); showToast('Di-load ke base!') }}>🔄 Use as Base</ActionBtn>
+              <GlassCard key={i} color={CC[i % CC.length]} label={`${r.index}. ${r.title || 'Variasi'}`}>
+                {r.diff && <div style={{ fontSize: 12, color: 'var(--c-violet)', fontWeight: 600, marginBottom: 6 }}>Beda: {r.diff}</div>}
+                <div style={{ background: tint('var(--paper)', 60), border: '1px solid var(--border)', borderRadius: 7, padding: '10px 12px', fontSize: 13, lineHeight: 1.7, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{r.prompt}</div>
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  <ActionBtn copied={copied['v' + i]} onClick={() => copy(r.prompt, 'v' + i)}>Salin</ActionBtn>
+                  <ActionBtn onClick={() => { setBasePrompt(r.prompt); showToast('Dipakai sebagai prompt dasar') }}>Jadikan prompt dasar</ActionBtn>
                 </div>
               </GlassCard>
             ))}
@@ -325,28 +281,7 @@ STRICT RULES:
       leftPanel={leftPanel}
       rightPanel={rightPanel}
       analyzeBtn={generateBtn}
-      drawerLabel="⚙ Theme & Platform"
+      drawerLabel="Pengaturan variasi"
     />
   )
-}
-
-function GlassCard({ color, label, children, style={} }) {
-  return (
-    <div style={{ background:color?.bg||'rgba(255,255,255,0.55)', border:`1px solid ${color?.border||'rgba(100,120,220,0.18)'}`, borderRadius:12, padding:'11px 12px', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', boxShadow:'0 2px 12px rgba(80,100,200,0.07)', ...style }}>
-      {label && <div style={{ fontSize:10, fontWeight:700, color:color?.accent||'var(--text3)', textTransform:'uppercase', letterSpacing:'0.09em', marginBottom:8 }}>{label}</div>}
-      {children}
-    </div>
-  )
-}
-
-function ActionBtn({ children, onClick, color, copied, small }) {
-  return (
-    <button onClick={onClick} style={{ padding:small?'3px 9px':'5px 12px', fontSize:10, fontWeight:600, background:copied?`${color||'#0c6747'}18`:'rgba(255,255,255,0.7)', border:`1px solid ${copied?(color||'#0c6747'):'rgba(100,120,220,0.2)'}`, color:copied?(color||'#0c6747'):'var(--text2)', borderRadius:7, cursor:'pointer', whiteSpace:'nowrap' }}>
-      {copied?'✓ Copied':children}
-    </button>
-  )
-}
-
-function Spin() {
-  return <span style={{ display:'inline-block', animation:'spin .7s linear infinite', fontSize:14 }}>⟳<style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style></span>
 }

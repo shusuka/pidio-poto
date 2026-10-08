@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import MobileLayout from './MobileLayout'
-import { GlassCard, Btn, PrimaryBtn, Spin, Empty, inputStyle, CC, pressable } from './ui'
+import { GlassCard, Btn, PrimaryBtn, Spin, Empty, inputStyle, CC, pressable, tint } from './ui'
 import { callAI, parseJsonResponse, extractVideoMetadata, PLATFORM_CONFIGS } from '../utils/gemini'
 import { buildHighlightPrompt, normalizeHighlight, speechRanges } from '../utils/analysis'
 import { fmtTime, downloadBlob, chunkScenes } from '../utils/media'
@@ -17,7 +17,7 @@ export const EMPTY_EDITOR = {
 }
 
 const ASPECTS = [['source', 'Asli'], ['9:16', '9:16'], ['16:9', '16:9'], ['1:1', '1:1'], ['4:5', '4:5']]
-const SRC_COLORS = ['#0a47e2', '#661cf0', '#0c6747', '#7e5106', '#ac0f47', '#a23200']
+const SRC_COLORS = ['var(--c-blue)', 'var(--c-violet)', 'var(--c-green)', 'var(--c-amber)', 'var(--c-pink)', 'var(--c-orange)']
 const HISTORY_LIMIT = 60
 
 function outputSize(aspect, src) {
@@ -69,6 +69,14 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
       past: [], future: [],
     }))
   }, [state.videoFile, state.videoUrl])
+
+  // ── Adegan yang dikirim dari tab Analisis ──
+  useEffect(() => {
+    const pending = state.pendingClips
+    if (!pending?.length || !sources.main) return
+    commit(d => ({ ...d, clips: [...d.clips, ...pending.map(r => ({ id: uid(), src: 'main', in: r.start, out: r.end }))] }))
+    set({ pendingClips: null })
+  }, [state.pendingClips, sources.main])
 
   const duration = totalDuration(doc.clips)
   const starts = useMemo(() => clipStarts(doc.clips), [doc.clips])
@@ -291,7 +299,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
         {!srcIds.length && <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 8 }}>Upload video di tab Analyze, atau tambah video di sini.</div>}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {srcIds.map(id => (
-            <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 7px', background: 'rgba(255,255,255,0.55)', borderRadius: 8, borderLeft: `3px solid ${colorOf(id)}` }}>
+            <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 7px', background: 'color-mix(in srgb, var(--paper) 55%, transparent)', borderRadius: 8, borderLeft: `3px solid ${colorOf(id)}` }}>
               <span style={{ flex: 1, minWidth: 0, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sources[id].name}>{id === 'main' ? '★ ' : ''}{sources[id].name}</span>
               <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text3)' }}>{fmtTime(sources[id].duration, 0)}</span>
               <Btn small onClick={() => addFullClip(id)} disabled={busy} title="Tambah seluruh video ke timeline">＋</Btn>
@@ -306,11 +314,11 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
       <GlassCard color={CC[2]} label="Otomatis">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           <Btn onClick={clipsFromScenes} disabled={busy || !sources.main} style={{ justifyContent: 'flex-start' }}>
-            🎬 Klip dari adegan {state.selectedScenes?.length ? `terpilih (${state.selectedScenes.length})` : `(${state.scenes?.length || 0})`}
+            Klip dari adegan {state.selectedScenes?.length ? `terpilih (${state.selectedScenes.length})` : `(${state.scenes?.length || 0})`}
           </Btn>
-          <div style={{ padding: 7, background: 'rgba(255,255,255,0.45)', borderRadius: 8 }}>
-            <Btn onClick={cutSilence} disabled={busy || !sources.main} style={{ width: '100%', justifyContent: 'flex-start' }}>🔇 Potong jeda (dari transkrip)</Btn>
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '3px 6px', alignItems: 'center', marginTop: 6, fontSize: 10, color: 'var(--text3)' }}>
+          <div style={{ padding: 7, background: 'color-mix(in srgb, var(--paper) 45%, transparent)', borderRadius: 8 }}>
+            <Btn onClick={cutSilence} disabled={busy || !sources.main} style={{ width: '100%', justifyContent: 'flex-start' }}>Potong jeda (dari transkrip)</Btn>
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '3px 6px', alignItems: 'center', marginTop: 6, fontSize: 11, color: 'var(--text3)' }}>
               <span>Jeda min</span>
               <input type="range" min={0.2} max={2} step={0.1} value={gap.minGap} onChange={e => setGap(g => ({ ...g, minGap: +e.target.value }))} />
               <span style={{ fontFamily: 'var(--mono)' }}>{gap.minGap.toFixed(1)}s</span>
@@ -318,15 +326,15 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
               <input type="range" min={0} max={0.8} step={0.05} value={gap.pad} onChange={e => setGap(g => ({ ...g, pad: +e.target.value }))} />
               <span style={{ fontFamily: 'var(--mono)' }}>{gap.pad.toFixed(2)}s</span>
             </div>
-            {!state.transcript?.length && <div style={{ fontSize: 11, color: '#7e5106', marginTop: 4 }}>Butuh transkrip (tab Analyze → Transkrip).</div>}
+            {!state.transcript?.length && <div style={{ fontSize: 11, color: 'var(--c-amber)', marginTop: 4 }}>Butuh transkrip (tab Analyze → Transkrip).</div>}
           </div>
-          <div style={{ padding: 7, background: 'rgba(255,255,255,0.45)', borderRadius: 8 }}>
+          <div style={{ padding: 7, background: 'color-mix(in srgb, var(--paper) 45%, transparent)', borderRadius: 8 }}>
             <div style={{ display: 'flex', gap: 4, marginBottom: 6, alignItems: 'center' }}>
-              <span style={{ fontSize: 10, color: 'var(--text3)', marginRight: 'auto' }}>Target durasi</span>
+              <span style={{ fontSize: 11, color: 'var(--text3)', marginRight: 'auto' }}>Target durasi</span>
               {[15, 30, 60].map(n => <Btn key={n} small active={target === n} onClick={() => setTarget(n)}>{n}s</Btn>)}
             </div>
             <Btn onClick={autoHighlight} disabled={busy || autoBusy || !sources.main} style={{ width: '100%', justifyContent: 'flex-start' }}>
-              {autoBusy ? <><Spin /> Menyusun…</> : '🤖 Susun highlight otomatis (AI)'}
+              {autoBusy ? <><Spin /> Menyusun…</> : 'Susun highlight otomatis (AI)'}
             </Btn>
             <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4, lineHeight: 1.5 }}>Paling akurat setelah Analyze dan/atau transkrip dibuat.</div>
           </div>
@@ -336,7 +344,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
       <GlassCard color={CC[3]} label="Teks & subtitle">
         <Btn onClick={addText} disabled={busy || !doc.clips.length} style={{ width: '100%' }}>＋ Tambah teks di playhead</Btn>
         <div style={{ display: 'flex', gap: 5, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Btn small active={doc.subtitles} color="#0c6747" disabled={!state.transcript?.length} onClick={() => commit(d => ({ ...d, subtitles: !d.subtitles }))}>
+          <Btn small active={doc.subtitles} color="var(--c-green)" disabled={!state.transcript?.length} onClick={() => commit(d => ({ ...d, subtitles: !d.subtitles }))}>
             {doc.subtitles ? '✓ ' : ''}Subtitle transkrip
           </Btn>
           {['S', 'M', 'L'].map(sz => <Btn key={sz} small active={doc.subtitleSize === sz} onClick={() => commit(d => ({ ...d, subtitleSize: sz }))}>{sz}</Btn>)}
@@ -349,8 +357,8 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
         {music ? (
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '8px 0 4px' }}>
-              <span style={{ flex: 1, minWidth: 0, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🎵 {music.name}</span>
-              <Btn small onClick={() => setMusic(null)} disabled={busy}>✕</Btn>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Musik: {music.name}</span>
+              <Btn small onClick={() => setMusic(null)} disabled={busy} aria-label="Hapus musik latar" title="Hapus musik latar">✕</Btn>
             </div>
             <Slider label="Volume musik" value={doc.musicVolume} onChange={v => commit(d => ({ ...d, musicVolume: v }))} />
           </>
@@ -368,15 +376,23 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
           <Btn small active={doc.fit === 'contain'} onClick={() => commit(d => ({ ...d, fit: 'contain' }))}>Utuh (bar hitam)</Btn>
           <Btn small active={doc.fit === 'cover'} onClick={() => commit(d => ({ ...d, fit: 'cover' }))}>Penuh (crop)</Btn>
         </div>
-        <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 6, fontFamily: 'var(--mono)' }}>{W}×{H}</div>
+        <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6, fontFamily: 'var(--mono)' }}>{W}×{H}</div>
       </GlassCard>
     </>
   )
 
   const exportBtn = (
-    <PrimaryBtn onClick={exportVideo} disabled={busy || !doc.clips.length} gradient="linear-gradient(135deg,#0c6747,#0a47e2)">
-      {busy ? <><Spin /> Merekam {Math.round(exporting * 100)}%</> : `⬇ Ekspor video (${fmtTime(duration, 0)})`}
-    </PrimaryBtn>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {doc.clips.length > 0 && (
+        <div className="num" style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.5 }}>
+          {exportFormat()} · {W}×{H} · {doc.aspect === 'source' ? 'rasio asli' : doc.aspect} · {fmtTime(duration, 0)}<br />
+          Butuh ±{fmtTime(Math.ceil(duration + 2), 0)} (direkam real-time) · ukuran ±{Math.max(1, Math.round(duration))} MB
+        </div>
+      )}
+      <PrimaryBtn onClick={exportVideo} disabled={busy || !doc.clips.length}>
+        {busy ? <><Spin /> Merekam {Math.round(exporting * 100)}%</> : `Ekspor video (${fmtTime(duration, 0)})`}
+      </PrimaryBtn>
+    </div>
   )
 
   // ── Panel kanan: pratinjau + timeline ──
@@ -388,19 +404,19 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
       </div>
 
       {busy && (
-        <div style={{ padding: '8px 10px', borderRadius: 9, background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.35)', fontSize: 11, color: 'var(--text2)' }}>
-          ⏺ Merekam secara real-time. Jangan pindah tab atau minimalkan jendela sampai selesai.
+        <div style={{ padding: '8px 10px', borderRadius: 9, background: 'color-mix(in srgb, var(--c-amber) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--c-amber) 35%, transparent)', fontSize: 11, color: 'var(--text2)' }}>
+          Merekam secara real-time. Jangan pindah tab atau minimalkan jendela sampai selesai.
         </div>
       )}
 
       {/* Kontrol putar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <Btn onClick={togglePlay} disabled={busy || !doc.clips.length} style={{ minWidth: 38 }}>{playing ? '⏸' : '▶'}</Btn>
+        <Btn onClick={togglePlay} disabled={busy || !doc.clips.length} style={{ minWidth: 44 }} aria-label={playing ? 'Jeda' : 'Putar'}>{playing ? '⏸' : '▶'}</Btn>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text2)' }}>{fmtTime(t)} / {fmtTime(duration)}</span>
         <input type="range" min={0} max={duration || 0} step={0.01} value={Math.min(t, duration)} disabled={busy || !duration}
           onChange={e => seek(+e.target.value)} style={{ flex: '1 1 160px' }} />
-        <Btn small onClick={undo} disabled={busy || !editor.past.length} title="Undo (Ctrl+Z)">↶</Btn>
-        <Btn small onClick={redo} disabled={busy || !editor.future.length} title="Redo (Ctrl+Shift+Z)">↷</Btn>
+        <Btn small onClick={undo} disabled={busy || !editor.past.length} title="Undo (Ctrl+Z)" aria-label="Undo">↶</Btn>
+        <Btn small onClick={redo} disabled={busy || !editor.future.length} title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</Btn>
       </div>
 
       {/* Toolbar */}
@@ -408,12 +424,12 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
         <Btn onClick={split} disabled={busy || !doc.clips.length} title="Potong klip di playhead (S)">✂ Split</Btn>
         <Btn onClick={() => trimToPlayhead('in')} disabled={busy || !selClip} title="Buang bagian klip sebelum playhead">⇤ Trim awal</Btn>
         <Btn onClick={() => trimToPlayhead('out')} disabled={busy || !selClip} title="Buang bagian klip setelah playhead">Trim akhir ⇥</Btn>
-        <Btn onClick={() => move(-1)} disabled={busy || !selClip}>◀</Btn>
-        <Btn onClick={() => move(1)} disabled={busy || !selClip}>▶</Btn>
-        <Btn onClick={duplicate} disabled={busy || !selClip}>⧉</Btn>
-        <Btn onClick={removeSelected} disabled={busy || !sel} color="#ae1329" title="Hapus (Delete)">🗑</Btn>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text3)' }}>
-          🔍 <input type="range" min={8} max={160} value={pps} onChange={e => setPps(+e.target.value)} style={{ width: 90 }} />
+        <Btn onClick={() => move(-1)} disabled={busy || !selClip} aria-label="Geser klip ke kiri" title="Geser klip ke kiri">◀</Btn>
+        <Btn onClick={() => move(1)} disabled={busy || !selClip} aria-label="Geser klip ke kanan" title="Geser klip ke kanan">▶</Btn>
+        <Btn onClick={duplicate} disabled={busy || !selClip} aria-label="Duplikat klip" title="Duplikat klip">Duplikat</Btn>
+        <Btn onClick={removeSelected} disabled={busy || !sel} color="var(--danger)" title="Hapus (Delete)">Hapus</Btn>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text3)' }}>
+          Zoom <input type="range" min={8} max={160} value={pps} onChange={e => setPps(+e.target.value)} style={{ width: 90 }} aria-label="Zoom timeline" />
         </span>
       </div>
 
@@ -421,7 +437,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
       {!doc.clips.length ? (
         <Empty>Timeline kosong. Tambahkan klip lewat panel kiri:<br />“Klip dari adegan”, “＋” pada sumber video, atau “Susun highlight otomatis”.</Empty>
       ) : (
-        <div ref={trackRef} style={{ overflowX: 'auto', background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(100,120,220,0.15)', borderRadius: 10, padding: '8px 0' }}>
+        <div ref={trackRef} style={{ overflowX: 'auto', background: 'color-mix(in srgb, var(--paper) 45%, transparent)', border: '1px solid color-mix(in srgb, var(--tint) 15%, transparent)', borderRadius: 10, padding: '8px 0' }}>
           <div style={{ position: 'relative', width: trackW, paddingLeft: 10 }}
             onClick={e => {
               if (e.target !== e.currentTarget && !e.target.dataset.lane) return
@@ -431,7 +447,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
             {/* penggaris */}
             <div data-lane="1" style={{ position: 'relative', height: 16 }}>
               {Array.from({ length: Math.floor(duration / rulerStep(pps)) + 1 }, (_, i) => i * rulerStep(pps)).map(sec => (
-                <span key={sec} data-lane="1" style={{ position: 'absolute', left: sec * pps, fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text3)', borderLeft: '1px solid rgba(100,120,220,0.3)', paddingLeft: 2, height: 14 }}>{fmtTime(sec, 0)}</span>
+                <span key={sec} data-lane="1" style={{ position: 'absolute', left: sec * pps, fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text3)', borderLeft: '1px solid color-mix(in srgb, var(--tint) 30%, transparent)', paddingLeft: 2, height: 14 }}>{fmtTime(sec, 0)}</span>
               ))}
             </div>
             {/* klip */}
@@ -448,10 +464,10 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
                     title={`${sources[c.src]?.name || c.src} · ${fmtTime(c.in)}–${fmtTime(c.out)}${c.note ? `\n${c.note}` : ''}`}
                     style={{
                       position: 'absolute', left: starts[i] * pps, width: Math.max(4, clipDur(c) * pps - 2), top: 0, bottom: 0,
-                      background: `${color}${on ? '55' : '2e'}`, border: `2px solid ${on ? color : `${color}88`}`, borderRadius: 7,
+                      background: tint(color, on ? 33 : 18), border: `2px solid ${on ? color : tint(color, 53)}`, borderRadius: 7,
                       cursor: 'grab', overflow: 'hidden', padding: '3px 5px', boxSizing: 'border-box',
                     }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>{i + 1}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap' }}>{i + 1}</div>
                     <div style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text2)', whiteSpace: 'nowrap' }}>{clipDur(c).toFixed(1)}s</div>
                   </div>
                 )
@@ -463,7 +479,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
                 const on = sel?.kind === 'text' && sel.id === x.id
                 return (
                   <div key={x.id} {...pressable(e => { e.stopPropagation(); setSel({ kind: 'text', id: x.id }) })} data-timeline="1" aria-pressed={on} title={x.text}
-                    style={{ position: 'absolute', left: x.start * pps, width: Math.max(10, x.dur * pps - 2), top: 0, bottom: 0, background: on ? 'rgba(245,166,35,0.45)' : 'rgba(245,166,35,0.22)', border: `1px solid ${on ? '#7e5106' : 'rgba(245,166,35,0.5)'}`, borderRadius: 5, fontSize: 11, padding: '3px 5px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer', boxSizing: 'border-box' }}>
+                    style={{ position: 'absolute', left: x.start * pps, width: Math.max(10, x.dur * pps - 2), top: 0, bottom: 0, background: on ? 'color-mix(in srgb, var(--c-amber) 45%, transparent)' : 'color-mix(in srgb, var(--c-amber) 22%, transparent)', border: `1px solid ${on ? 'var(--c-amber)' : 'color-mix(in srgb, var(--c-amber) 50%, transparent)'}`, borderRadius: 5, fontSize: 11, padding: '3px 5px', overflow: 'hidden', whiteSpace: 'nowrap', cursor: 'pointer', boxSizing: 'border-box' }}>
                     T {x.text}
                   </div>
                 )
@@ -473,12 +489,12 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
             {cues.length > 0 && (
               <div data-lane="1" style={{ position: 'relative', height: 10, marginTop: 4 }}>
                 {cues.map((cue, i) => (
-                  <div key={i} data-lane="1" title={cue.text} style={{ position: 'absolute', left: cue.start * pps, width: Math.max(2, (cue.end - cue.start) * pps - 1), top: 0, bottom: 0, background: 'rgba(24,201,138,0.45)', borderRadius: 3 }} />
+                  <div key={i} data-lane="1" title={cue.text} style={{ position: 'absolute', left: cue.start * pps, width: Math.max(2, (cue.end - cue.start) * pps - 1), top: 0, bottom: 0, background: 'color-mix(in srgb, var(--c-green) 45%, transparent)', borderRadius: 3 }} />
                 ))}
               </div>
             )}
             {/* playhead */}
-            <div style={{ position: 'absolute', top: 0, bottom: 0, left: 10 + t * pps, width: 2, background: '#ae1329', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: 0, bottom: 0, left: 10 + t * pps, width: 2, background: 'var(--danger)', pointerEvents: 'none' }} />
           </div>
         </div>
       )}
@@ -491,7 +507,7 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
             <NumField label="Selesai (detik sumber)" value={selClip.out} onCommit={v => updateClip(selClip.id, { out: v })} />
             <span style={{ fontSize: 11, color: 'var(--text2)', paddingBottom: 6 }}>Durasi {clipDur(selClip).toFixed(2)}s</span>
           </div>
-          {selClip.note && <div style={{ fontSize: 10, color: 'var(--text3)', marginTop: 6, fontStyle: 'italic' }}>💡 {selClip.note}</div>}
+          {selClip.note && <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 6, fontStyle: 'italic' }}>Alasan AI: {selClip.note}</div>}
         </GlassCard>
       )}
       {selText && (
@@ -511,14 +527,20 @@ export default function EditorTab({ state, set, showToast, isMobile }) {
         </GlassCard>
       )}
 
-      <div style={{ fontSize: 10, color: 'var(--text3)', lineHeight: 1.6 }}>
+      <div style={{ fontSize: 11, color: 'var(--text3)', lineHeight: 1.6 }}>
         Pintasan: Spasi = play/pause · S = split · Delete = hapus · Ctrl+Z / Ctrl+Shift+Z = undo/redo · seret klip untuk mengubah urutan.
         Ekspor direkam real-time di browser (MP4 bila didukung, selain itu WebM).
       </div>
     </div>
   )
 
-  return <MobileLayout isMobile={isMobile} leftPanel={leftPanel} rightPanel={rightPanel} analyzeBtn={exportBtn} drawerLabel="⚙ Media & Otomatis" />
+  return <MobileLayout isMobile={isMobile} leftPanel={leftPanel} rightPanel={rightPanel} analyzeBtn={exportBtn} drawerLabel="Media & otomatis" />
+}
+
+// Format yang benar-benar akan dipakai MediaRecorder di browser ini
+function exportFormat() {
+  if (typeof MediaRecorder === 'undefined') return 'Ekspor tidak didukung browser ini'
+  return MediaRecorder.isTypeSupported('video/mp4') ? 'MP4' : 'WebM'
 }
 
 function rulerStep(pps) {
@@ -529,7 +551,7 @@ function Slider({ label, value, onChange }) {
   const [v, setV] = useState(value)
   useEffect(() => setV(value), [value])
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 2, fontSize: 10, color: 'var(--text3)' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 2, fontSize: 11, color: 'var(--text3)' }}>
       <span>{label}</span>
       <span style={{ fontFamily: 'var(--mono)' }}>{Math.round(v * 100)}%</span>
       <input type="range" min={0} max={1.5} step={0.05} value={v} style={{ gridColumn: '1 / -1' }}
