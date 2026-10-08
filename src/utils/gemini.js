@@ -9,10 +9,29 @@ import { VIDEO_PLATFORMS } from '../config/platforms'
 // Gemini memakai videoMetadata, Claude mengambil frame hanya dari rentang itu
 // (atau dari `frameTimes` bila diberikan).
 export async function callAI({ provider = 'gemini', ...opts }) {
-  return provider === 'claude' ? callClaude(opts) : callGemini(opts)
+  if (provider === 'claude') return callClaude(opts)
+  if (provider === 'vertex') {
+    // Project ID opsional (hanya untuk key yang terikat ke project/service account)
+    let project = opts.project
+    if (project === undefined) { try { project = localStorage.getItem(VERTEX_PROJECT_KEY) || '' } catch { project = '' } }
+    return callGemini({ ...opts, vertex: true, project })
+  }
+  return callGemini(opts)
+}
+
+export const VERTEX_PROJECT_KEY = 'videoprompt_vertex_project'
+// Vertex tidak punya Files API untuk API key. Video di atas batas ini dikirim
+// sebagai rangkaian frame (tanpa audio), sama seperti jalur Claude.
+const VERTEX_INLINE_LIMIT = 20 * 1024 * 1024
+
+// Apakah video untuk provider ini akan dikirim sebagai frame diam (tanpa audio)?
+export function usesFrames(provider, file) {
+  if (provider === 'claude') return true
+  return provider === 'vertex' && !!file && file.size > VERTEX_INLINE_LIMIT
 }
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com'
+const VERTEX_BASE = 'https://aiplatform.googleapis.com'
 const INLINE_LIMIT = 20 * 1024 * 1024      // di atas ini video dicoba lewat Files API
 const INLINE_HARD_LIMIT = 100 * 1024 * 1024 // batas inline Gemini
 
@@ -22,15 +41,30 @@ const isGemini3 = (model = '') => /^gemini-3/.test(model)
 // Mendukung input video & gambar. Key dikirim lewat header (bukan query URL)
 // supaya tidak ikut tercatat di log/riwayat jaringan.
 export async function callGemini({
-  apiKey, model, prompt, mediaFile, mediaData, mimeType, clip,
+  apiKey, model, prompt, mediaFile, mediaData, mimeType, clip, frameTimes,
   temperature = 0.7, maxTokens = 32768, thinkingMode = false, json = false, onStage,
+  vertex = false, project = '',
 }) {
   if (!apiKey) throw new Error('API key belum diisi')
   const parts = []
   const mime = mimeType || mediaFile?.type
-  if (mediaFile) {
-    onStage?.(mediaFile.size > INLINE_LIMIT ? 'upload' : 'send')
-    const part = await geminiMediaPart(apiKey, mediaFile, mime)
+  let framesNote = ''
+  if (mediaFile && vertex && mime?.startsWith('video/') && mediaFile.size > VERTEX_INLINE_LIMIT) {
+    onStage?.('frames')
+    const frames = await extractVideoFrames(mediaFile, { times: frameTimes || (clip ? sampleClip(clip) : undefined) })
+    if (!frames.length) throw new Error('Gagal mengambil frame dari video.')
+    frames.forEach(fr => {
+      parts.push({ text: `Frame @ ${fr.time.toFixed(1)}s` })
+      parts.push({ inline_data: { mime_type: 'image/jpeg', data: fr.data } })
+    })
+    framesNote = `The video was provided as ${frames.length} still frames (timestamp above each frame, in seconds from the start of the original video) because it is too large to send whole. No audio is available: anything about sound or dialogue must be labeled as inferred or suggested, never observed.
+
+`
+  } else if (mediaFile) {
+    onStage?.(!vertex && mediaFile.size > INLINE_LIMIT ? 'upload' : 'send')
+    const part = vertex
+      ? { inline_data: { mime_type: mime, data: await fileToBase64(mediaFile) } }
+      : await geminiMediaPart(apiKey, mediaFile, mime)
     if (clip && mime?.startsWith('video/')) {
       part.videoMetadata = { startOffset: `${Math.max(0, clip.start).toFixed(2)}s`, endOffset: `${clip.end.toFixed(2)}s` }
     }
@@ -38,7 +72,7 @@ export async function callGemini({
   } else if (mediaData) {
     parts.push({ inline_data: { mime_type: mime, data: mediaData } })
   }
-  parts.push({ text: prompt })
+  parts.push({ text: framesNote + prompt })
 
   // Semua model Gemini saat ini "berpikir", dan token berpikir ikut memakan
   // maxOutputTokens — batas kecil (mis. 2048) membuat output terpotong/kosong.
@@ -52,16 +86,19 @@ export async function callGemini({
   if (json) generationConfig.responseMimeType = 'application/json'
 
   onStage?.('generate')
-  const res = await fetch(`${GEMINI_BASE}/v1beta/models/${model}:generateContent`, {
+  const url = vertex
+    ? `${VERTEX_BASE}/v1/${project.trim() ? `projects/${encodeURIComponent(project.trim())}/locations/global/` : ''}publishers/google/models/${model}:generateContent`
+    : `${GEMINI_BASE}/v1beta/models/${model}:generateContent`
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig }),
+    body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig }),
   })
   const data = await readJson(res)
-  if (data.error) throw new Error(data.error.message || `Gemini error ${res.status}`)
+  if (data.error) throw new Error(vertex ? vertexError(data.error, res.status) : geminiError(data.error, res.status))
 
   const block = data.promptFeedback?.blockReason
-  if (block) throw new Error(`Permintaan diblokir Gemini (${block}).`)
+  if (block) throw new Error(`Permintaan diblokir filter keamanan Google (${block}).`)
   const cand = data.candidates?.[0]
   const text = (cand?.content?.parts || []).filter(p => p.text && !p.thought).map(p => p.text).join('')
   const tokens = data.usageMetadata?.totalTokenCount || 0
@@ -69,7 +106,7 @@ export async function callGemini({
     const reason = cand?.finishReason
     throw new Error(reason === 'MAX_TOKENS'
       ? 'Output habis sebelum selesai (MAX_TOKENS). Coba lagi atau matikan Deep Think.'
-      : `Gemini tidak mengembalikan teks${reason ? ` (${reason})` : ''}.`)
+      : `Model tidak mengembalikan teks${reason ? ` (${reason})` : ''}.`)
   }
   return { text, tokens, truncated: cand?.finishReason === 'MAX_TOKENS' }
 }
@@ -189,6 +226,26 @@ export async function callClaude({ apiKey, model, prompt, mediaFile, mediaData, 
 function sampleClip({ start, end }) {
   const n = Math.min(20, Math.max(3, Math.round((end - start) / 2)))
   return Array.from({ length: n }, (_, i) => start + ((end - start) * (i + 0.5)) / n)
+}
+
+function geminiError(err, status) {
+  const msg = err.message || `Gemini error ${status}`
+  // Key Google Cloud yang dibatasi ke Vertex AI ditolak oleh Gemini API
+  if (/generativelanguage.*are blocked|API_KEY_SERVICE_BLOCKED/i.test(msg + JSON.stringify(err.details || ''))) {
+    return 'Key ini tidak diizinkan untuk Gemini API (biasanya key Vertex AI / Google Cloud). Pilih provider "Vertex AI" di header, lalu tempel key yang sama di sana.'
+  }
+  return msg
+}
+
+// Pesan error Vertex yang paling sering, diterjemahkan ke langkah perbaikan
+function vertexError(err, status) {
+  const msg = err.message || `Vertex AI error ${status}`
+  if (status === 401 || /API key not valid/i.test(msg)) return 'API key Vertex tidak valid. Pakai key dari Google Cloud (APIs & Services > Credentials) yang diizinkan untuk Vertex AI API.'
+  if (status === 403 && /SERVICE_DISABLED|has not been used|is disabled/i.test(msg)) return 'Vertex AI API belum diaktifkan di project ini. Aktifkan "Vertex AI API" di Google Cloud Console, tunggu beberapa menit, lalu coba lagi.'
+  if (status === 403 && /billing/i.test(msg)) return 'Billing project Google Cloud belum aktif. Aktifkan billing (kredit juga dihitung di sini), lalu coba lagi.'
+  if (status === 404) return `Model tidak ditemukan di Vertex AI (${msg}). Coba model lain, atau isi Project ID bila key Anda terikat ke project.`
+  if (status === 400 && /size|too large|exceeds/i.test(msg)) return 'Video terlalu besar untuk Vertex. Pilih lebih sedikit adegan atau kompres videonya.'
+  return msg
 }
 
 async function readJson(res) {

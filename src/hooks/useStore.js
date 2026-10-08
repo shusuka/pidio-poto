@@ -2,9 +2,9 @@ import { RETIRED_PLATFORMS } from '../config/platforms'
 import { useState, useCallback, useRef } from 'react'
 
 const PROVIDER_KEY = 'videoprompt_provider'
-const KEY_SLOT = { gemini: 'videoprompt_gemini_key', claude: 'videoprompt_claude_key' }
+const KEY_SLOT = { gemini: 'videoprompt_gemini_key', vertex: 'videoprompt_vertex_key', claude: 'videoprompt_claude_key' }
 const MODEL_KEY = 'videoprompt_model_'
-export const DEFAULT_MODEL = { gemini: 'gemini-3.8-flash', claude: 'claude-opus-5' }
+export const DEFAULT_MODEL = { gemini: 'gemini-3.8-flash', vertex: 'gemini-3.8-flash', claude: 'claude-opus-5' }
 // Model lama yang sudah dimatikan/diganti → arahkan ke pengganti
 const RETIRED = {
   'gemini-3-flash-preview': 'gemini-3.8-flash',

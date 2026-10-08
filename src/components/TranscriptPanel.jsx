@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { GlassCard, Btn, PrimaryBtn, Spin, Empty, inputStyle, CC } from './ui'
-import { callAI, parseJsonResponse } from '../utils/gemini'
+import { callAI, parseJsonResponse, usesFrames } from '../utils/gemini'
 import { buildTranscriptPrompt, normalizeTranscript, toSRT, toVTT, toPlainTranscript, newSegId } from '../utils/analysis'
 import { fmtTime, parseTime, downloadBlob } from '../utils/media'
 
@@ -25,7 +25,11 @@ export default function TranscriptPanel({ state, set, showToast, videoRef }) {
   const [query, setQuery] = useState('')
   const [now, setNow] = useState(0)
   const segments = state.transcript || []
-  const isClaude = state.provider === 'claude'
+  const noAudioMsg = state.provider === 'claude'
+    ? 'Transkripsi otomatis butuh Gemini atau Vertex AI (Claude tidak bisa mendengar audio).'
+    : 'Video di atas 20 MB tidak bisa ditranskripsi lewat Vertex AI. Pakai provider Gemini, atau potong/kompres videonya.'
+  // Transkrip butuh audio: Claude tidak bisa, Vertex hanya untuk video ≤ 20 MB
+  const noAudio = usesFrames(state.provider, state.videoFile)
 
   useEffect(() => {
     const v = videoRef.current
@@ -38,7 +42,7 @@ export default function TranscriptPanel({ state, set, showToast, videoRef }) {
   async function generate() {
     if (!state.videoFile) return showToast('Upload video dulu!', true)
     if (!state.apiKey) return showToast('Masukkan API key!', true)
-    if (isClaude) return showToast('Transkripsi butuh Gemini (Claude tidak bisa mendengar audio).', true)
+    if (noAudio) return showToast(noAudioMsg, true)
     if (segments.length && !confirm('Ganti transkrip yang ada (termasuk koreksi manual)?')) return
     setLoading(true)
     try {
@@ -75,7 +79,7 @@ export default function TranscriptPanel({ state, set, showToast, videoRef }) {
       <GlassCard color={CC[2]} label="Transkrip & subtitle">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ flex: '1 1 200px' }}>
-            <PrimaryBtn onClick={generate} disabled={loading || !state.videoFile || isClaude} gradient="var(--grad-primary)">
+            <PrimaryBtn onClick={generate} disabled={loading || !state.videoFile || noAudio} gradient="var(--grad-primary)">
               {loading ? <><Spin /> Mentranskripsi…</> : segments.length ? 'Buat ulang transkrip' : 'Buat transkrip otomatis'}
             </PrimaryBtn>
           </div>
@@ -84,7 +88,7 @@ export default function TranscriptPanel({ state, set, showToast, videoRef }) {
             {state.subtitleOnVideo ? '✓ ' : ''}Subtitle di video
           </Btn>
         </div>
-        {isClaude && <div style={{ marginTop: 7, fontSize: 11, color: 'var(--c-amber)' }}>Transkripsi otomatis butuh provider Gemini. Ganti provider di header, atau tulis transkrip manual.</div>}
+        {noAudio && <div style={{ marginTop: 7, fontSize: 12, color: 'var(--c-amber)' }}>{noAudioMsg} Transkrip juga bisa ditulis manual.</div>}
         {segments.length > 0 && (
           <div style={{ display: 'flex', gap: 5, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: 'var(--text3)' }}>{segments.length} segmen{state.transcriptLang ? ` · ${state.transcriptLang}` : ''} · Ekspor:</span>

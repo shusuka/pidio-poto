@@ -9,26 +9,9 @@ import HistoryDrawer from './components/HistoryDrawer'
 import Toast from './components/Toast'
 import { Icon, tint } from './components/ui'
 import { loadSession, saveSession, clearSession } from './utils/db'
+import { PROVIDERS, PROVIDER_IDS } from './config/providers'
+import { VERTEX_PROJECT_KEY } from './utils/gemini'
 
-const PROVIDERS = [
-  { id: 'gemini', label: 'Gemini' },
-  { id: 'claude', label: 'Claude' },
-]
-const MODELS_BY_PROVIDER = {
-  gemini: [
-    { id: 'gemini-3.8-flash',       label: '3.8 Flash' },
-    { id: 'gemini-3.1-pro-preview', label: '3.1 Pro' },
-    { id: 'gemini-2.5-flash',       label: '2.5 Flash' },
-  ],
-  claude: [
-    { id: 'claude-opus-5',   label: 'Opus 5' },
-    { id: 'claude-sonnet-5', label: 'Sonnet 5' },
-  ],
-}
-const KEY_HELP = {
-  gemini: { url: 'https://aistudio.google.com/apikey', site: 'Google AI Studio' },
-  claude: { url: 'https://console.anthropic.com/settings/keys', site: 'Anthropic Console' },
-}
 const TABS = [
   { id: 'analyze',   label: 'Analisis video', short: 'Analisis', icon: 'analyze' },
   { id: 'swap',      label: 'Prompt gambar',  short: 'Gambar',   icon: 'image' },
@@ -41,7 +24,8 @@ export default function App() {
   const { state, set, showToast } = useStore()
   const isMobile = useMobile()
   const width = useWidth()
-  const models = MODELS_BY_PROVIDER[state.provider] || []
+  const models = PROVIDERS[state.provider]?.models || []
+  const prov = PROVIDERS[state.provider] || PROVIDERS.gemini
   const keyRef = useRef(null)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [restoreOffer, setRestoreOffer] = useState(undefined) // undefined = belum dicek
@@ -88,8 +72,8 @@ export default function App() {
       {/* ── HEADER ── */}
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-        padding: isMobile ? '8px 12px' : '0 16px', minHeight: isMobile ? 'auto' : 54,
-        flexWrap: isMobile ? 'wrap' : 'nowrap', rowGap: 8, flexShrink: 0,
+        padding: isMobile ? '8px 12px' : '7px 16px', minHeight: isMobile ? 'auto' : 54,
+        flexWrap: 'wrap', rowGap: 8, flexShrink: 0,
         background: 'var(--header-bg)', borderBottom: '1px solid var(--border2)',
         backdropFilter: 'var(--blur)', WebkitBackdropFilter: 'var(--blur)',
         position: 'relative', zIndex: 20,
@@ -118,17 +102,17 @@ export default function App() {
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...(isMobile ? { width: '100%', minWidth: 0, flexWrap: 'wrap' } : { minWidth: 0 }) }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...(isMobile ? { width: '100%', minWidth: 0, flexWrap: 'wrap' } : { minWidth: 0, marginLeft: 'auto' }) }}>
           {state.totalTokens > 0 && !compact && (
             <div className="num" title="Total token yang dipakai di sesi ini" style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
               {state.totalTokens.toLocaleString('id-ID')} token
             </div>
           )}
           <div role="radiogroup" aria-label="Provider AI" style={{ display: 'flex', gap: 2, padding: 2, background: tint('var(--tint)', 8), borderRadius: 8, flexShrink: 0 }}>
-            {PROVIDERS.map(p => {
+            {PROVIDER_IDS.map(id => ({ id, ...PROVIDERS[id] })).map(p => {
               const on = state.provider === p.id
               return (
-                <button key={p.id} role="radio" aria-checked={on} onClick={() => set({ provider: p.id })} style={{
+                <button key={p.id} role="radio" aria-checked={on} onClick={() => set({ provider: p.id })} title={`${p.label} (${p.company})`} style={{
                   padding: '5px 10px', fontSize: 12, fontWeight: 650,
                   background: on ? 'var(--paper)' : 'transparent', border: on ? '1px solid var(--border2)' : '1px solid transparent',
                   color: on ? 'var(--text)' : 'var(--text3)', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap',
@@ -176,9 +160,10 @@ export default function App() {
       {!state.apiKey && (
         <Banner>
           <span style={{ flex: 1, minWidth: 220 }}>
-            Belum ada API key {state.provider === 'claude' ? 'Claude' : 'Gemini'}. Buat gratis di{' '}
-            <a href={KEY_HELP[state.provider].url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontWeight: 600 }}>{KEY_HELP[state.provider].site}</a>,
-            lalu tempel di kolom key. Key hanya disimpan di browser ini dan dikirim langsung ke {state.provider === 'claude' ? 'Anthropic' : 'Google'}.
+            Belum ada API key {prov.label}. Buat di{' '}
+            <a href={prov.keyUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', fontWeight: 600 }}>{prov.keySite}</a>,
+            lalu tempel di kolom key. Key hanya disimpan di browser ini dan dikirim langsung ke {prov.company}.
+            {state.provider === 'vertex' && ' Pastikan Vertex AI API sudah aktif dan billing/kredit project menyala.'}
           </span>
           <button onClick={focusKey} style={bannerBtnPrimary}>Isi API key</button>
         </Banner>
@@ -231,7 +216,10 @@ function ApiKeyInput({ value, onChange, isMobile, provider, inputRef }) {
   const [show, setShow] = useState(false)
   const [help, setHelp] = useState(false)
   const saved = !!value
-  const name = provider === 'claude' ? 'Claude' : 'Gemini'
+  const p = PROVIDERS[provider] || PROVIDERS.gemini
+  const name = p.label
+  const [project, setProject] = useState(() => { try { return localStorage.getItem(VERTEX_PROJECT_KEY) || '' } catch { return '' } })
+  const saveProject = v => { setProject(v); try { v.trim() ? localStorage.setItem(VERTEX_PROJECT_KEY, v.trim()) : localStorage.removeItem(VERTEX_PROJECT_KEY) } catch { /* abaikan */ } }
   return (
     <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4, ...(isMobile ? { flex: '1 1 100%', minWidth: 0, order: 5 } : {}) }}>
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', ...(isMobile ? { flex: 1, minWidth: 0 } : {}) }}>
@@ -263,10 +251,25 @@ function ApiKeyInput({ value, onChange, isMobile, provider, inputRef }) {
           <strong style={{ color: 'var(--text)' }}>Ke mana key {name} pergi?</strong>
           <ul style={{ paddingLeft: 16, margin: '6px 0' }}>
             <li>Disimpan di localStorage browser ini saja, terpisah untuk Gemini dan Claude.</li>
-            <li>Dikirim langsung dari browser ke {provider === 'claude' ? 'api.anthropic.com' : 'generativelanguage.googleapis.com'} lewat header, tidak lewat server lain.</li>
+            <li>Dikirim langsung dari browser ke {p.host} lewat header, tidak lewat server lain.</li>
             <li>Tidak ikut tersimpan di riwayat, sesi otomatis, maupun file ekspor.</li>
             <li>Hapus kapan saja dengan tombol ✕ di kolom key.</li>
           </ul>
+          {provider === 'vertex' && (
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 8, marginBottom: 8 }}>
+              <strong style={{ color: 'var(--text)' }}>Vertex AI</strong>
+              <ul style={{ paddingLeft: 16, margin: '6px 0' }}>
+                <li>Pakai key dari Google Cloud Console (APIs &amp; Services &gt; Credentials) yang diizinkan untuk Vertex AI API. Pemakaian ditagih ke project itu, termasuk kreditnya.</li>
+                <li>Video di atas 20 MB dikirim sebagai frame diam tanpa audio. Untuk hasil dengan suara/dialog, potong atau kompres video di bawah 20 MB.</li>
+              </ul>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text3)' }}>
+                Project ID (opsional)
+                <input value={project} onChange={e => saveProject(e.target.value)} placeholder="mis. my-project-123" spellCheck={false}
+                  style={{ display: 'block', width: '100%', marginTop: 4, padding: '6px 8px', fontSize: 12, fontFamily: 'var(--mono)', background: 'var(--paper)', border: '1px solid var(--border2)', borderRadius: 6, color: 'var(--text)' }} />
+              </label>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Kosongkan untuk key express mode. Isi kalau key Anda terikat ke project tertentu atau muncul error model tidak ditemukan.</div>
+            </div>
+          )}
           <button onClick={() => setHelp(false)} style={{ ...keyBtn, border: '1px solid var(--border2)', borderRadius: 6, padding: '4px 10px' }}>Tutup</button>
         </div>
       )}

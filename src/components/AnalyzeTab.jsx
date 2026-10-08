@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
-import { callAI, parseJsonResponse, buildInsightPrompt, extractVideoMetadata } from '../utils/gemini'
+import { callAI, parseJsonResponse, buildInsightPrompt, extractVideoMetadata, usesFrames } from '../utils/gemini'
+import { PROVIDERS, PROVIDER_IDS, providerName } from '../config/providers'
 import { VIDEO_PLATFORMS, videoTargetName } from '../config/platforms'
 import { detectScenes, chunkScenes, sampleTimes, SENSITIVITY, extractVideoFrames, fmtTime, downloadBlob } from '../utils/media'
 import {
@@ -156,12 +157,12 @@ export default function AnalyzeTab({ state, set, showToast, isMobile, focusKey }
 
   const needKey = () => { showToast('Isi API key dulu', true); focusKey?.(); return false }
 
-  const promptOpts = (provider = state.provider) => ({
+  const promptOpts = (provider = state.provider, file = state.videoFile) => ({
     lang: state.lang || 'en', promptMode, customTarget: state.customTarget, lock: state.lock,
     generateMode: state.generateMode || 'precise',
     cinematic: state.toggleCinematic, motionAnalysis: state.toggleMotion,
     aiParams: state.toggleAiParams, focusArea: state.focusArea || 'all',
-    detailLevel: state.detailLevel || 'High', transcript: state.transcript, framesOnly: provider === 'claude',
+    detailLevel: state.detailLevel || 'High', transcript: state.transcript, framesOnly: usesFrames(provider, file),
   })
   const callOpts = (file, provider = state.provider, apiKey = state.apiKey, model = state.model) => ({
     provider, apiKey, model,
@@ -181,7 +182,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile, focusKey }
     const all = scenes?.length ? scenes : chunkScenes(meta?.duration)
     const use = picked?.length ? picked : all
     const clip = use.length < all.length ? { start: Math.min(...use.map(sc => sc.start)), end: Math.max(...use.map(sc => sc.end)) } : null
-    const prompt = buildStructuredPrompt({ ...promptOpts(provider), videoMeta: meta, scenes: use, clip })
+    const prompt = buildStructuredPrompt({ ...promptOpts(provider, file), videoMeta: meta, scenes: use, clip })
     const { text, tokens, truncated } = await callAI({
       ...callOpts(file, provider, apiKey, model), prompt, clip, onStage,
       frameTimes: sampleTimes(use, { every: 2, max: 40 }),
@@ -202,7 +203,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile, focusKey }
     if (!state.apiKey) return needKey()
     const all = state.scenes?.length ? state.scenes : chunkScenes(state.videoMeta?.duration)
     const picked = state.selectedScenes?.length ? all.filter(sc => state.selectedScenes.includes(sc.id)) : all
-    const sendStep = state.provider === 'claude' ? 'frames' : state.videoFile.size > 20 * 1048576 ? 'upload' : 'send'
+    const sendStep = usesFrames(state.provider, state.videoFile) ? 'frames' : state.provider === 'gemini' && state.videoFile.size > 20 * 1048576 ? 'upload' : 'send'
     const steps = ['read', sendStep, 'generate', 'build']
     setStage({ steps, current: 'read' })
     setLastError(null); setCompare(null)
@@ -295,8 +296,13 @@ export default function AnalyzeTab({ state, set, showToast, isMobile, focusKey }
   }
 
   // ── Bandingkan dengan provider lain ──
-  const otherProvider = state.provider === 'gemini' ? 'claude' : 'gemini'
-  const otherName = otherProvider === 'claude' ? 'Claude' : 'Gemini'
+  // Pembanding: utamakan keluarga model lain (Gemini/Vertex ↔ Claude) yang key-nya sudah tersimpan
+  const otherProvider = useMemo(() => {
+    const others = PROVIDER_IDS.filter(id => id !== state.provider)
+    const crossFamily = others.filter(id => (id === 'claude') !== (state.provider === 'claude'))
+    return [...crossFamily, ...others].find(id => loadKey(id)) || crossFamily[0]
+  }, [state.provider, state.apiKey])
+  const otherName = providerName(otherProvider)
   async function compareModels() {
     const key = loadKey(otherProvider)
     if (!key) return showToast(`Simpan API key ${otherName} dulu: pilih ${otherName} di header, isi key, lalu kembali`, true)
@@ -424,7 +430,7 @@ Transition : how it cuts to the next clip`
     if (!secs) return null
     const promptTok = 2500
     let input
-    if (state.provider === 'claude') {
+    if (usesFrames(state.provider, state.videoFile)) {
       const frames = Math.min(40, Math.max(picked.length || 1, Math.round(secs / 2)))
       const w = state.videoMeta?.width || 1280, h = state.videoMeta?.height || 720
       const sc = Math.min(1, 768 / Math.max(w, h))
@@ -441,7 +447,7 @@ Transition : how it cuts to the next clip`
     if (g === 'image') Object.assign(patch, { activeTab: 'swap' })
     if (g === 'variations') Object.assign(patch, { activeTab: 'realistic' })
     set(patch)
-    if (g === 'subtitle' && state.provider === 'claude') showToast('Subtitle butuh Gemini karena Claude tidak bisa mendengar audio. Ganti provider di header.', true)
+    if (g === 'subtitle' && !PROVIDERS[state.provider]?.hearsAudio) showToast('Subtitle butuh Gemini atau Vertex AI karena Claude tidak bisa mendengar audio. Ganti provider di header.', true)
     if (['camera', 'product', 'subtitle', 'highlight'].includes(g)) fileRef.current?.click()
   }
 
@@ -651,7 +657,7 @@ Transition : how it cuts to the next clip`
                 </GlassCard>
 
                 {compare && compare !== 'busy' && (
-                  <GlassCard color={CC[1]} label={`Perbandingan: ${state.provider === 'claude' ? 'Claude' : 'Gemini'} dan ${otherName}`}
+                  <GlassCard color={CC[1]} label={`Perbandingan: ${providerName(state.provider)} dan ${otherName}`}
                     right={<Btn small onClick={() => setCompare(null)}>Tutup</Btn>}>
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
                       <div>
