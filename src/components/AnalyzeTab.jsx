@@ -8,6 +8,7 @@ import {
   analysisContext, countMissing, toVTT, lockInstruction, buildRevisePrompt, buildAdaptPrompt, mergeRevised,
 } from '../utils/analysis'
 import { addHistory } from '../utils/db'
+import { fetchVideoFromLink, detectLinkPlatform, extractUrl, LINK_PLATFORMS } from '../utils/linkVideo'
 import { buildProductionPackage } from '../utils/package'
 import { loadKey, DEFAULT_MODEL } from '../hooks/useStore'
 import MobileLayout from './MobileLayout'
@@ -73,6 +74,7 @@ export default function AnalyzeTab({ state, set, showToast, isMobile, focusKey }
   const [revising, setRevising]   = useState(null)   // 'all' | scene id
   const [framing, setFraming]     = useState(null)
   const [pkg, setPkg]             = useState(null)   // label tahap paket
+  const [linkJob, setLinkJob]     = useState(null)   // { platform, received, total } saat mengambil video dari link
   const [query, setQuery]         = useState('')
 
   const promptMode = VIDEO_PLATFORMS[state.promptMode] ? state.promptMode : 'kling'
@@ -104,9 +106,45 @@ export default function AnalyzeTab({ state, set, showToast, isMobile, focusKey }
   const handleDrop = useCallback((e) => {
     e.preventDefault()
     const file = e.dataTransfer.files[0]
+    const link = !file && extractUrl(e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain'))
     if (file?.type.startsWith('video/')) loadVideo(file)
+    else if (link) loadFromLink(link)
     else showToast('Yang bisa dianalisis hanya file video', true)
   }, [state.videoUrl])
+
+  async function loadFromLink(text) {
+    if (linkJob) return
+    const url = extractUrl(text)
+    const platform = url && detectLinkPlatform(url)
+    if (!url) return showToast('Tempel link video dari TikTok, Instagram, Facebook, atau X', true)
+    if (!platform) return showToast('Link belum didukung. Yang bisa: TikTok, Instagram, Facebook, X/Twitter', true)
+    if (platform === 'youtube') return showToast('YouTube belum didukung lewat link. Unduh videonya dulu lalu unggah.', true)
+    setLinkJob({ platform, received: 0, total: 0 })
+    try {
+      const file = await fetchVideoFromLink(url, { onProgress: p => setLinkJob(j => j && { ...j, ...p }) })
+      await loadVideo(file)
+      showToast(`Video ${LINK_PLATFORMS[platform]} siap dianalisis`)
+    } catch (e) {
+      showToast(e.message || 'Gagal mengambil video dari link', true)
+    } finally {
+      setLinkJob(null)
+    }
+  }
+
+  // Ctrl+V di mana saja (selain kolom teks): tempel file video atau link medsos
+  const pasteRef = useRef(null)
+  pasteRef.current = (e) => {
+    if (e.target?.closest?.('input, textarea, [contenteditable="true"]')) return
+    const file = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('video/'))
+    if (file) { e.preventDefault(); loadVideo(file); return }
+    const url = extractUrl(e.clipboardData?.getData('text'))
+    if (url && detectLinkPlatform(url)) { e.preventDefault(); loadFromLink(url) }
+  }
+  useEffect(() => {
+    const onPaste = e => pasteRef.current?.(e)
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [])
 
   // preset = { scenes, analysisData } dipakai saat meninjau hasil antrean
   async function loadVideo(file, preset) {
@@ -483,9 +521,10 @@ Transition : how it cuts to the next clip`
             <Btn small onClick={() => fileRef.current?.click()}>Ganti video</Btn>
             <Btn small onClick={clearVideo} color="var(--danger)" title="Lepas video dan hasilnya">Lepas</Btn>
           </div>
+          <LinkBar onSubmit={loadFromLink} job={linkJob} compact style={{ marginTop: 8 }} />
         </GlassCard>
       ) : state.analysisData ? (
-        <UploadBox onPick={() => fileRef.current?.click()} onDrop={handleDrop} compact />
+        <UploadBox onPick={() => fileRef.current?.click()} onDrop={handleDrop} onLink={loadFromLink} linkJob={linkJob} compact />
       ) : null}
 
       <SceneStrip
@@ -579,7 +618,7 @@ Transition : how it cuts to the next clip`
 
   const rightPanel = showStart ? (
     <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 12 : 24 }}>
-      <StartScreen onPick={() => fileRef.current?.click()} onDrop={handleDrop} onGoal={pickGoal} goal={state.goal} isMobile={isMobile} />
+      <StartScreen onPick={() => fileRef.current?.click()} onDrop={handleDrop} onLink={loadFromLink} linkJob={linkJob} onGoal={pickGoal} goal={state.goal} isMobile={isMobile} />
     </div>
   ) : (
     <>
@@ -809,9 +848,56 @@ function PlatformPicker({ value, onChange }) {
   )
 }
 
-function UploadBox({ onPick, onDrop, compact }) {
+const fmtMB = n => (n / 1048576).toFixed(n < 10485760 ? 1 : 0)
+
+function LinkBar({ onSubmit, job, compact, style = {} }) {
+  const [value, setValue] = useState('')
+  const platform = detectLinkPlatform(extractUrl(value) || '')
+  const busy = !!job
+  const pct = job?.total ? Math.min(100, Math.round(job.received / job.total * 100)) : null
+  const submit = e => { e.preventDefault(); if (!busy) onSubmit(value) }
+  return (
+    <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 5, ...style }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+          <Icon name="link" size={15} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
+          <input type="url" inputMode="url" value={value} disabled={busy} aria-label="Link video medsos"
+            onChange={e => setValue(e.target.value)}
+            onPaste={e => {
+              const t = e.clipboardData.getData('text')
+              if (!busy && detectLinkPlatform(extractUrl(t) || '')) { e.preventDefault(); setValue(t.trim()); onSubmit(t) }
+            }}
+            placeholder={compact ? 'Tempel link video…' : 'Tempel link TikTok, Instagram, Facebook, atau X…'}
+            style={{ ...inputStyle, width: '100%', fontSize: 13, padding: compact ? '6px 8px 6px 30px' : '9px 10px 9px 30px' }} />
+        </div>
+        <Btn type="submit" disabled={busy || !value.trim()} color="var(--accent)" active={!!platform && !busy} small={compact}>
+          {busy ? <><Spin /> Mengambil</> : 'Ambil video'}
+        </Btn>
+      </div>
+      {busy ? (
+        <div aria-live="polite" style={{ fontSize: 11.5, color: 'var(--text2)' }}>
+          Mengambil video dari {LINK_PLATFORMS[job.platform]}{job.received ? ` · ${fmtMB(job.received)}${job.total ? ` / ${fmtMB(job.total)}` : ''} MB` : '…'}
+          {pct != null && (
+            <div style={{ height: 3, borderRadius: 2, background: tint('var(--tint)', 15), marginTop: 4, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)', transition: 'width .2s' }} />
+            </div>
+          )}
+        </div>
+      ) : !compact && (
+        <div style={{ fontSize: 11.5, color: 'var(--text3)' }}>
+          {platform === 'youtube' ? 'YouTube belum didukung lewat link. Unduh dulu lalu unggah.'
+            : platform ? `Terdeteksi: ${LINK_PLATFORMS[platform]}${platform === 'instagram' || platform === 'facebook' ? ' (beta, kadang ditolak platform)' : ''}`
+            : 'Tidak perlu unduh dulu. Bisa juga langsung Ctrl+V di halaman ini.'}
+        </div>
+      )}
+    </form>
+  )
+}
+
+function UploadBox({ onPick, onDrop, onLink, linkJob, compact }) {
   const [over, setOver] = useState(false)
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: compact ? 8 : 10 }}>
     <div {...pressable(onPick)} aria-label="Pilih file video"
       onDragOver={e => { e.preventDefault(); setOver(true) }} onDragLeave={() => setOver(false)} onDrop={e => { setOver(false); onDrop(e) }}
       style={{
@@ -823,10 +909,12 @@ function UploadBox({ onPick, onDrop, compact }) {
       <div style={{ fontSize: compact ? 13 : 16, fontWeight: 650, color: 'var(--text)' }}>Unggah video</div>
       <div style={{ fontSize: 12, color: 'var(--text3)' }}>Klik atau seret file ke sini · MP4, MOV, WEBM</div>
     </div>
+    {onLink && <LinkBar onSubmit={onLink} job={linkJob} compact={compact} />}
+    </div>
   )
 }
 
-function StartScreen({ onPick, onDrop, onGoal, goal, isMobile }) {
+function StartScreen({ onPick, onDrop, onLink, linkJob, onGoal, goal, isMobile }) {
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div>
@@ -837,7 +925,7 @@ function StartScreen({ onPick, onDrop, onGoal, goal, isMobile }) {
           Unggah video, aplikasi memotongnya per adegan, lalu AI menulis prompt untuk tiap adegan. Setiap bagian diberi label: terlihat di video, perkiraan, atau saran AI.
         </p>
       </div>
-      <UploadBox onPick={onPick} onDrop={onDrop} />
+      <UploadBox onPick={onPick} onDrop={onDrop} onLink={onLink} linkJob={linkJob} />
       <div>
         <h2 style={{ fontSize: 15, fontWeight: 650, color: 'var(--text)', marginBottom: 8 }}>Apa yang ingin kamu buat?</h2>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px, 1fr))', gap: 8 }}>

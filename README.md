@@ -39,7 +39,7 @@ npm run build
 - React 18 + Vite 5
 - Google Gemini API (gemini-3.8-flash / 3.1-pro / 2.5-flash) + Anthropic Claude API (opus-5 / sonnet-5)
 - Canvas + WebAudio + MediaRecorder for preview and export
-- No backend required — runs entirely in the browser
+- One small Vercel function (`api/fetch-video.js`) for social links; everything else runs in the browser. In `npm run dev` the same handler is served by a Vite middleware.
 
 ## Notes
 
