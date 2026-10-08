@@ -47,8 +47,6 @@ export default function App() {
   const [restoreOffer, setRestoreOffer] = useState(undefined) // undefined = belum dicek
   const compact = width < 1560
 
-  useEffect(() => { document.documentElement.dataset.theme = state.theme || 'studio' }, [state.theme])
-
   // ── Sesi terakhir: tawarkan pemulihan sekali saat halaman dibuka ──
   useEffect(() => {
     loadSession().then(s => setRestoreOffer(s?.analysisData || s?.videoFile || s?.transcript?.length ? s : null))
@@ -160,11 +158,6 @@ export default function App() {
           <ApiKeyInput inputRef={keyRef} value={state.apiKey} onChange={v => set({ apiKey: v })} isMobile={isMobile} provider={state.provider} />
           <button onClick={() => setHistoryOpen(true)} title="Riwayat hasil" aria-label="Buka riwayat hasil" style={iconBtn}>
             <Icon name="history" />
-          </button>
-          <button onClick={() => set({ theme: state.theme === 'klasik' ? 'studio' : 'klasik' })}
-            title={state.theme === 'klasik' ? 'Ganti ke tampilan Studio (baru)' : 'Ganti ke tampilan Klasik (lama)'}
-            style={{ ...iconBtn, width: 'auto', padding: '0 10px', fontSize: 12, fontWeight: 600, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
-            {state.theme === 'klasik' ? 'Klasik' : 'Studio'}
           </button>
         </div>
       </header>

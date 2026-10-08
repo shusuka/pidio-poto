@@ -28,7 +28,7 @@ const savedProvider = localStorage.getItem(PROVIDER_KEY) || 'gemini'
 
 // Pengaturan yang diingat per perangkat (tanpa API key; key punya slot sendiri)
 const PREFS_KEY = 'videoprompt_prefs'
-const PREF_FIELDS = ['theme', 'advanced', 'lock', 'promptMode', 'customTarget', 'lang', 'detailLevel', 'generateMode', 'focusArea', 'toggleCinematic', 'toggleMotion', 'toggleAiParams', 'markSources']
+const PREF_FIELDS = ['advanced', 'lock', 'promptMode', 'customTarget', 'lang', 'detailLevel', 'generateMode', 'focusArea', 'toggleCinematic', 'toggleMotion', 'toggleAiParams', 'markSources']
 function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')
@@ -54,7 +54,6 @@ const initialState = {
   promptMode: 'kling',
   customTarget: '',         // model/versi target yang ditulis pengguna
   detailLevel: 'High',
-  theme: 'studio',          // studio (baru) | klasik (tampilan lama)
   advanced: false,          // mode Lanjutan menampilkan semua pengaturan
   lock: {},                 // kunci konsistensi {character, product, wardrobe, palette, style}
   goal: null,               // pilihan di layar awal "Apa yang ingin kamu buat?"

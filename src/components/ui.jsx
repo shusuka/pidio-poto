@@ -3,7 +3,7 @@ import React from 'react'
 // Warna transparan dari token tema (bisa hex atau var(--...))
 export const tint = (color, pct) => `color-mix(in srgb, ${color} ${pct}%, transparent)`
 
-// Warna kartu diambil dari tema: Studio = netral semua, Klasik = enam warna lama
+// Warna kartu diambil dari token tema (semua netral)
 export const CC = [0, 1, 2, 3, 4, 5].map(i => ({ bg: `var(--cc${i}-bg)`, border: `var(--cc${i}-line)`, accent: `var(--cc${i}-ink)` }))
 
 export function GlassCard({ color, label, right, children, style = {}, as: Tag = 'div' }) {
