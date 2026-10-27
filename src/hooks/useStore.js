@@ -28,7 +28,7 @@ const savedProvider = localStorage.getItem(PROVIDER_KEY) || 'gemini'
 
 // Pengaturan yang diingat per perangkat (tanpa API key; key punya slot sendiri)
 const PREFS_KEY = 'videoprompt_prefs'
-const PREF_FIELDS = ['advanced', 'lock', 'promptMode', 'customTarget', 'lang', 'detailLevel', 'generateMode', 'focusArea', 'toggleCinematic', 'toggleMotion', 'toggleAiParams', 'markSources']
+const PREF_FIELDS = ['advanced', 'lock', 'promptMode', 'customTarget', 'lang', 'detailLevel', 'generateMode', 'focusArea', 'toggleCinematic', 'toggleMotion', 'toggleAiParams', 'markSources', 'partLen']
 function loadPrefs() {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')
@@ -71,6 +71,7 @@ const initialState = {
   analysisText: null,
   analysisData: null,      // hasil analisis terstruktur (bisa diedit)
   markSources: false,      // tandai [perkiraan]/[saran AI] di teks salinan
+  partLen: 0,              // panjang per bagian prompt utuh (detik); 0 = satu kotak
   scenes: [],              // [{id,start,end,thumb,cut}]
   selectedScenes: [],      // id adegan yang dipilih; kosong = semua
   scenesStatus: null,

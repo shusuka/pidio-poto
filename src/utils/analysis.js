@@ -352,6 +352,77 @@ export function scenePrompt(data, scene, { promptMode, customTarget } = {}) {
   return lines.join('\n')
 }
 
+// ─── Satu prompt utuh untuk seluruh video ───────────────────────────────────
+// Adegan dikelompokkan jadi bagian sepanjang `partLen` detik (0 = satu bagian),
+// dipotong hanya di batas adegan. Waktu di dalam tiap bagian mulai dari 00:00
+// karena tiap bagian di-generate sebagai video terpisah.
+export function splitParts(scenes, partLen = 0) {
+  if (!partLen) return [scenes]
+  const parts = []
+  let cur = []
+  for (const s of scenes) {
+    if (cur.length && s.end - cur[0].start > partLen + 0.5) { parts.push(cur); cur = [] }
+    cur.push(s)
+  }
+  if (cur.length) parts.push(cur)
+  return parts
+}
+
+export function fullPrompt(data, { promptMode, customTarget, partLen = 0, lock } = {}) {
+  if (!data?.scenes?.length) return []
+  const g = data.global
+  const p = PLATFORM_CONFIGS[promptMode] || PLATFORM_CONFIGS.kling
+  const name = videoTargetName(promptMode, customTarget).toUpperCase()
+  const t = s => fmtTime(s, 0)
+  const lk = k => lock?.[k]?.trim()
+  const parts = splitParts(data.scenes, partLen)
+  const BR = {} // baris kosong yang disengaja; teks kosong dibuang
+
+  return parts.map((scenes, pi) => {
+    const t0 = scenes[0].start
+    const dur = Math.round(scenes[scenes.length - 1].end - t0)
+    const multi = parts.length > 1
+    const out = [
+      multi ? `${name} — VIDEO PART ${pi + 1} OF ${parts.length}` : `${name} — FULL VIDEO`,
+      `Create a ${dur}-second video${g.style?.text ? ` in this style: ${g.style.text}` : ''}.`,
+      multi && pi > 0 ? `This is a direct continuation of Part ${pi}: same characters, wardrobe, location and color grade.` : '',
+      BR,
+      'VIDEO SETTINGS',
+      `* Duration: exactly ${dur} seconds.`,
+      data.resolution && `* Aspect ratio: ${data.resolution}.`,
+      g.cameraWork?.text && `* Camera: ${g.cameraWork.text}`,
+      data.platformParams?.text && `* Params: ${data.platformParams.text}`,
+      BR,
+      'SUBJECT AND CONSISTENCY',
+      lk('character') || g.subject?.text,
+      lk('wardrobe') && `Wardrobe: ${lk('wardrobe')}`,
+      lk('product') && `Product: ${lk('product')}`,
+      'Keep the same face, hairstyle, body proportions and outfit in every shot.',
+      BR,
+      'LOCATION',
+      g.environment?.text,
+      g.timeOfDay?.text && `Time of day: ${g.timeOfDay.text}`,
+    ].filter(v => v === BR || (typeof v === 'string' && v)).map(v => v === BR ? '' : v)
+
+    scenes.forEach((s, i) => {
+      out.push('', `SCENE ${i + 1} — ${t(s.start - t0)}–${t(s.end - t0)}`)
+      if (s.camera.text) out.push(`Camera: ${s.camera.text}`)
+      if (s.summary.text) out.push(s.summary.text)
+      if (s.slots.length > 1) s.slots.forEach(sl => sl.text && out.push(`${t(sl.start - t0)}–${t(sl.end - t0)}: ${sl.text}`))
+      if (s.dialogue.text) out.push(`DIALOGUE: "${s.dialogue.text}"`)
+    })
+
+    out.push('', 'AUDIO AND CINEMATOGRAPHY')
+    if (g.sound?.text) out.push(g.sound.text)
+    if (g.lighting?.text) out.push(`Lighting: ${g.lighting.text}`)
+    if (lk('palette')) out.push(`Color: ${lk('palette')}`)
+    if (lk('style')) out.push(`Look: ${lk('style')}`)
+    if (p.negative) out.push('', 'NEGATIVE PROMPT', p.negative)
+    if (multi && pi < parts.length - 1) out.push('', `Keep the final frame suitable for seamless continuation into Part ${pi + 2}.`)
+    return out.filter((v, i, a) => !(v === '' && a[i - 1] === '')).join('\n').trim()
+  })
+}
+
 // Bagian adegan yang masih perkiraan / saran AI dan belum diperiksa
 export function sceneReview(scene) {
   const out = []

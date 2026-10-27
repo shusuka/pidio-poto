@@ -5,7 +5,7 @@ import { VIDEO_PLATFORMS, videoTargetName } from '../config/platforms'
 import { detectScenes, chunkScenes, sampleTimes, SENSITIVITY, extractVideoFrames, fmtTime, downloadBlob } from '../utils/media'
 import {
   buildStructuredPrompt, normalizeAnalysis, normalizeScenePatch, analysisToText,
-  analysisContext, countMissing, toVTT, lockInstruction, buildRevisePrompt, buildAdaptPrompt, mergeRevised,
+  analysisContext, countMissing, toVTT, lockInstruction, buildRevisePrompt, buildAdaptPrompt, mergeRevised, fullPrompt,
 } from '../utils/analysis'
 import { addHistory } from '../utils/db'
 import { fetchVideoFromLink, detectLinkPlatform, extractUrl, LINK_PLATFORMS } from '../utils/linkVideo'
@@ -357,6 +357,10 @@ export default function AnalyzeTab({ state, set, showToast, isMobile, focusKey }
   }
 
   // ── Kirim ke tab lain ──
+  const fullParts = useMemo(() => fullPrompt(state.analysisData, {
+    promptMode, customTarget: state.customTarget, partLen: state.partLen || 0, lock: state.lock,
+  }), [state.analysisData, promptMode, state.customTarget, state.partLen, state.lock])
+
   const actions = {
     copied,
     copy: (text, key) => copyText(text, showToast).then(ok => { if (ok) { setCopied(p => ({ ...p, [key]: true })); setTimeout(() => setCopied(p => ({ ...p, [key]: false })), 1800) } }),
@@ -665,8 +669,8 @@ Transition : how it cuts to the next clip`
                   <span className="num" style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginRight: 'auto' }}>
                     {target} · {state.analysisData.scenes.length} adegan
                   </span>
-                  <ActionBtn copied={copied.all} onClick={() => actions.copy(state.analysisText, 'all')}>Salin semua</ActionBtn>
-                  <ActionBtn onClick={() => downloadText(state.analysisText || '', 'prompt.txt')} title="Unduh teks prompt (.txt)">Unduh .txt</ActionBtn>
+                  <ActionBtn copied={copied.all} onClick={() => actions.copy(fullParts.join('\n\n\n'), 'all')}>Salin semua</ActionBtn>
+                  <ActionBtn onClick={() => downloadText(fullParts.join('\n\n\n'), 'prompt.txt')} title="Unduh prompt utuh (.txt)">Unduh .txt</ActionBtn>
                   <ActionBtn onClick={downloadPackage} disabled={!!pkg} title="ZIP berisi prompt per adegan, storyboard, frame, daftar shot, dan subtitle">
                     {pkg ? <><Spin /> {pkg}…</> : 'Paket produksi (ZIP)'}
                   </ActionBtn>
@@ -729,6 +733,14 @@ Transition : how it cuts to the next clip`
                   )}
                 </div>
 
+                <FullPromptCard parts={fullParts} partLen={state.partLen || 0} onPartLen={v => set({ partLen: v })}
+                  duration={state.analysisData.scenes.at(-1).end - state.analysisData.scenes[0].start} actions={actions} />
+
+                <details>
+                  <summary style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>
+                    Rincian per adegan ({state.analysisData.scenes.length}): edit, analisis ulang, revisi
+                  </summary>
+                  <div style={{ marginTop: 8 }}>
                 <AnalysisEditor
                   data={state.analysisData}
                   thumbs={Object.fromEntries((state.scenes || []).filter(sc => sc.thumb).map(sc => [sc.id, sc.thumb]))}
@@ -739,6 +751,8 @@ Transition : how it cuts to the next clip`
                   platform={{ promptMode, customTarget: state.customTarget }}
                   actions={actions}
                 />
+                  </div>
+                </details>
 
                 <details>
                   <summary style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>Teks lengkap ({(state.analysisText?.length || 0).toLocaleString('id-ID')} karakter)</summary>
@@ -1123,5 +1137,42 @@ function InsightPanel({ data, copy, copied }) {
         </GlassCard>
       )}
     </div>
+  )
+}
+
+// Satu kotak prompt untuk seluruh video; bisa dibagi per N detik (PART 1 OF 2, dst).
+const PART_OPTIONS = [
+  { value: 0, label: 'Utuh', title: 'Seluruh video dalam satu prompt' },
+  { value: 10, label: '10 dtk' },
+  { value: 15, label: '15 dtk' },
+  { value: 30, label: '30 dtk' },
+]
+
+function FullPromptCard({ parts, partLen, onPartLen, duration, actions }) {
+  return (
+    <GlassCard color={CC[2]} label={`Prompt utuh · ${Math.round(duration)} dtk${parts.length > 1 ? ` · ${parts.length} bagian` : ''}`}
+      right={<div style={{ minWidth: 220 }}><Seg value={partLen} onChange={onPartLen} label="Panjang per bagian" options={PART_OPTIONS} /></div>}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {parts.map((text, i) => {
+          const key = `full-${i}`
+          return (
+            <div key={key} style={{ background: tint('var(--paper)', 70), border: '1px solid var(--border)', borderRadius: 7, padding: '8px 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                <span style={{ fontSize: 12, fontWeight: 650, color: 'var(--text)', flex: 1 }}>
+                  {parts.length > 1 ? `Bagian ${i + 1} dari ${parts.length}` : 'Seluruh video'}
+                </span>
+                <Btn small onClick={() => actions.copy(text, key)} active={actions.copied[key]} color="var(--c-green)">
+                  {actions.copied[key] ? 'Tersalin' : 'Salin prompt'}
+                </Btn>
+              </div>
+              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'var(--mono)', fontSize: 11.5, lineHeight: 1.55, color: 'var(--text2)', maxHeight: 420, overflowY: 'auto' }}>{text}</pre>
+            </div>
+          )
+        })}
+        {partLen > 0 && parts.length > 1 && (
+          <div style={{ fontSize: 12, color: 'var(--text3)' }}>Dipotong di batas adegan, jadi tiap bagian bisa sedikit lebih pendek atau lebih panjang dari {partLen} dtk.</div>
+        )}
+      </div>
+    </GlassCard>
   )
 }
