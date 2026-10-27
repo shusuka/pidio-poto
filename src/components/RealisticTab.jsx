@@ -29,6 +29,7 @@ const AXES = [
   { value: 'lighting', label: 'Cahaya' },
   { value: 'moment',   label: 'Momen' },
   { value: 'setting',  label: 'Latar' },
+  { value: 'custom',   label: 'Sendiri' },
 ]
 const AXIS_INSTR = {
   mixed: 'Vary whatever makes each variation most distinct.',
@@ -44,6 +45,7 @@ export default function RealisticTab({ state, set, showToast, isMobile, focusKey
   const [customTheme, setCustomTheme] = useState('')
   const [count, setCount] = useState(3)
   const [axis, setAxis] = useState('mixed')
+  const [wish, setWish] = useState('')
   const [keepSubject, setKeepSubject] = useState(true)
   const [keepStyle, setKeepStyle] = useState(false)
   const [includeAudio, setIncludeAudio] = useState(true)
@@ -54,6 +56,9 @@ export default function RealisticTab({ state, set, showToast, isMobile, focusKey
   const basePrompt = state.variationBase || ''
   const setBasePrompt = v => set({ variationBase: v })
   const target = videoTargetName(promptMode, state.customTarget)
+  // Perubahan sendiri: satu baris = satu variasi bila lebih dari satu baris
+  const wishes = axis === 'custom' ? wish.split('\n').map(w => w.trim()).filter(Boolean) : []
+  const total = wishes.length > 1 ? wishes.length : count
 
   // Buka entri riwayat
   React.useEffect(() => {
@@ -67,6 +72,7 @@ export default function RealisticTab({ state, set, showToast, isMobile, focusKey
     if (!basePrompt.trim()) return showToast('Isi prompt dasar dulu', true)
     if (!state.apiKey) { showToast('Isi API key dulu', true); return focusKey?.() }
     if (theme === 'custom' && !customTheme.trim()) return showToast('Tulis temanya dulu', true)
+    if (axis === 'custom' && !wishes.length) return showToast('Tulis perubahan yang kamu mau dulu', true)
 
     setLoading(true); setError(null)
     setResults([])
@@ -77,6 +83,10 @@ export default function RealisticTab({ state, set, showToast, isMobile, focusKey
       keepSubject && 'Keep the main subject (person/product/character) exactly as described in the base prompt in every variation.',
       keepStyle && 'Keep the visual style, color grade and lens look of the base prompt in every variation.',
     ].filter(Boolean).join('\n')
+    const axisLine = axis !== 'custom' ? AXIS_INSTR[axis]
+      : wishes.length > 1
+        ? `The user decides what changes in each variation. Apply exactly this change, and keep everything else from the base prompt unless the change requires it:\n${wishes.map((w, i) => `- VARIATION ${i + 1}: ${w}`).join('\n')}`
+        : `The user wants this change in every variation: "${wishes[0]}". Apply it in ${count > 1 ? 'a clearly different way in each variation' : 'the variation'}, and keep everything else from the base prompt unless the change requires it.`
 
     try {
       const prompt = `You are an expert AI video prompt engineer for ${target}.
@@ -85,9 +95,9 @@ Platform style: ${VIDEO_PLATFORMS[promptMode].note}
 BASE PROMPT:
 ${basePrompt}
 
-TASK: Write ${count} clearly different video prompt variations.
+TASK: Write ${total} clearly different video prompt variations.
 ${themeLine}
-${AXIS_INSTR[axis]}
+${axisLine}
 ${keeps}
 ${lockInstruction(state.lock)}
 
@@ -160,7 +170,7 @@ STRICT RULES:
 
   const generateBtn = (
     <PrimaryBtn onClick={generateVariations} disabled={loading}>
-      {loading ? <><Spin /> Menulis variasi…</> : `Buat ${count} variasi`}
+      {loading ? <><Spin /> Menulis variasi…</> : `Buat ${total} variasi`}
     </PrimaryBtn>
   )
 
@@ -174,13 +184,25 @@ STRICT RULES:
 
       <GlassCard color={CC[2]} label="Yang dibuat berbeda">
         <Seg value={axis} onChange={setAxis} options={AXES} label="Yang dibuat berbeda" />
+        {axis === 'custom' && (
+          <>
+            <textarea value={wish} onChange={e => setWish(e.target.value)} aria-label="Perubahan yang diinginkan"
+              placeholder={'mis. ganti latar jadi pasar tradisional\nkarakter memakai batik, suasana malam'}
+              style={{ ...inputStyle, width: '100%', minHeight: 72, marginTop: 8, padding: '8px 10px', fontSize: 12.5, lineHeight: 1.55, resize: 'vertical' }} />
+            <div style={{ fontSize: 11.5, color: 'var(--text3)', marginTop: 4 }}>
+              {wishes.length > 1 ? `${wishes.length} baris, jadi ${wishes.length} variasi: satu baris untuk satu variasi.` : 'Satu baris dipakai di semua variasi. Tulis beberapa baris kalau tiap variasi mau beda.'}
+            </div>
+          </>
+        )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
           <Toggle on={keepSubject} onClick={() => setKeepSubject(v => !v)} title="Subjek utama tidak berubah di semua variasi">Kunci subjek</Toggle>
           <Toggle on={keepStyle} onClick={() => setKeepStyle(v => !v)} title="Gaya visual dan color grade tidak berubah">Kunci gaya visual</Toggle>
           <Toggle on={includeAudio} onClick={() => setIncludeAudio(v => !v)} title="Tambahkan bagian audio di setiap variasi">Sertakan audio</Toggle>
         </div>
         <div style={{ fontSize: 12, color: 'var(--text3)', margin: '10px 0 4px' }}>Jumlah variasi</div>
-        <Seg value={count} onChange={setCount} label="Jumlah variasi" options={[1, 2, 3, 4, 5].map(n => ({ value: n, label: String(n) }))} />
+        {wishes.length > 1
+          ? <div style={{ fontSize: 12, color: 'var(--text2)' }}>{wishes.length}, mengikuti jumlah baris perubahan</div>
+          : <Seg value={count} onChange={setCount} label="Jumlah variasi" options={[1, 2, 3, 4, 5].map(n => ({ value: n, label: String(n) }))} />}
       </GlassCard>
 
       <GlassCard color={CC[1]} label="Tema">
@@ -241,10 +263,10 @@ STRICT RULES:
           </Note>
         )}
 
-        {loading && Array.from({ length: count }).map((_, i) => (
+        {loading && Array.from({ length: total }).map((_, i) => (
           <GlassCard key={i} color={CC[0]} label={`Variasi ${i + 1}`}>
             <div style={{ height: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: 13, animation: 'pulse 1.2s infinite' }}>
-              Menulis variasi {i + 1} dari {count}…
+              Menulis variasi {i + 1} dari {total}…
             </div>
           </GlassCard>
         ))}
